@@ -1,0 +1,7 @@
+[package]
+name = "web-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]

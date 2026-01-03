@@ -1,0 +1,32 @@
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environnement
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Base de données (si SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Tauri
+ui/tauri-app/target/
+ui/tauri-app/dist/
