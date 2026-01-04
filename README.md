@@ -31,9 +31,67 @@ Ciné-Now est une application distribuée qui recommande des films personnalisé
 
 ### Prérequis
 
-- Rust 1.75+
-- Mosquitto (broker MQTT)
-- Clé API TMDb
+Avant de commencer, installez les logiciels suivants :
+
+#### 1. **Rust** (version 1.75 ou supérieure)
+- **Windows** : https://rustup.rs/
+  - Télécharger et exécuter ``rustup-init.exe``
+  - Redémarrer PowerShell après l'installation
+- **Linux/Mac** : 
+``````bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+``````
+- Vérifier l'installation :
+``````bash
+  rustc --version
+  cargo --version
+``````
+
+#### 2. **Git**
+- **Windows** : https://git-scm.com/download/win
+- **Linux (Debian/Ubuntu)** :
+``````bash
+  sudo apt install git
+``````
+- **Mac** :
+``````bash
+  brew install git
+``````
+- Vérifier l'installation :
+``````bash
+  git --version
+``````
+
+#### 3. **Mosquitto** (broker MQTT)
+- **Windows** : https://mosquitto.org/download/
+  - Télécharger l'installateur 64-bit
+  - Ajouter ``C:\Program Files\mosquitto`` au PATH système
+  - Redémarrer PowerShell
+- **Linux (Debian/Ubuntu)** :
+``````bash
+  sudo apt update
+  sudo apt install mosquitto mosquitto-clients
+``````
+- **Mac** :
+``````bash
+  brew install mosquitto
+  brew services start mosquitto
+``````
+- Vérifier l'installation :
+``````bash
+  mosquitto -h
+``````
+
+#### 4. **Clé API TMDb** (gratuite)
+- Créer un compte : https://www.themoviedb.org/signup
+- Demander une clé API :
+  1. Se connecter sur TMDb
+  2. Aller dans **Settings** → **API**
+  3. Cliquer sur **"Request an API Key"**
+  4. Choisir **"Developer"**
+  5. Remplir le formulaire (Type: Education/Student)
+  6. Copier votre **API Key (v3 auth)**
+  
 
 ### Configuration
 
@@ -75,25 +133,9 @@ nano .env  # Ajouter votre clé TMDb
 cargo build
 ``````
 
-### Lancement (à venir)
+### Lancement
 
-#### Windows
-``````powershell
-# Démarrer le broker MQTT (Terminal 1)
-mosquitto -c mosquitto.conf
-
-# Lancer les services (scripts à venir)
-.\scripts\run-all.ps1
-``````
-
-#### Linux
-``````bash
-# Démarrer le broker MQTT (Terminal 1)
-mosquitto -c mosquitto.conf
-
-# Lancer les services (scripts à venir)
-./scripts/run-all.sh
-``````
+//todo
 
 ## 📚 Documentation
 
