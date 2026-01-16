@@ -5,3 +5,5 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+tokio = { workspace = true }
+rumqttc = { workspace = true }
