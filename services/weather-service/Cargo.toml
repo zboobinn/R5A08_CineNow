@@ -1,9 +1,12 @@
-[package]
-name = "weather-service"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
+    [package]
+    name = "weather-service"
+    version.workspace = true
+    edition.workspace = true
+    authors.workspace = true
 
-[dependencies]
-tokio = { workspace = true }
-rumqttc = { workspace = true }
+    [dependencies]
+    tokio = { workspace = true, features = ["full"] }
+    rumqttc = { workspace = true }
+    reqwest = { version = "0.11", features = ["json"] }
+    serde = { version = "1.0", features = ["derive"] }
+    serde_json = "1.0"
