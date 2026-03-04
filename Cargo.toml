@@ -7,6 +7,7 @@ members = [
     "services/movie-service",
     "services/recommendation-service",
     "services/web-server",
+    "ui/src-tauri",
 ]
 
 [workspace.package]

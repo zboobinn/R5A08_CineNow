@@ -1,20 +1,8 @@
 import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faSun, faCloud, faCloudRain, faSnowflake,
-  faCloudShowersHeavy, faBolt, faQuestion,
-  faMoon, faLocationDot
-} from "@fortawesome/free-solid-svg-icons";
-
-const weatherIcons = {
-  "Ensoleillé": faSun,
-  "Nuageux": faCloud,
-  "Pluie": faCloudRain,
-  "Neige": faSnowflake,
-  "Averses": faCloudShowersHeavy,
-  "Orageux": faBolt,
-  "Inconnu": faQuestion,
-};
+import { faLocationDot } from "@fortawesome/free-solid-svg-icons";
+import { weatherThemes } from "../themes/weatherThemes";
+import { Particles } from "./Particles";
 
 function WeatherCard() {
   const [weather, setWeather] = useState(null);
@@ -26,26 +14,32 @@ function WeatherCard() {
       .catch((err) => console.error("Erreur météo:", err));
   }, []);
 
-  if (!weather) return (
-    <div className="bg-stone-100 rounded-2xl p-4 text-stone-400 text-sm">
-      Chargement météo...
-    </div>
+  if (!weather || weather.condition === "") return (
+  <div className="rounded-2xl p-4 bg-stone-100 text-stone-400 text-sm text-center">
+    Chargement météo...
+  </div>
   );
 
-  const icon = weatherIcons[weather.condition] ?? faQuestion;
+  function getParticles(condition, isDay) {
+  if (condition === "Pluie" || condition === "Averses" || condition === "Orageux") return "rain";
+  if (condition === "Neige") return "snow";
+  if (!isDay) return "stars";
+  return null;
+}
+
+
   const isDay = weather.day === 1;
+  const theme = weatherThemes[weather.condition]?.[isDay ? "day" : "night"]
+    ?? weatherThemes["Inconnu"][isDay ? "day" : "night"];
 
   return (
-    <div className="bg-stone-100 rounded-2xl p-4 flex flex-col gap-3 items-center ">
-      <FontAwesomeIcon icon={icon} className="text-3xl text-stone-600" />
-      <div className="font-semibold text-stone-800">{weather.condition}</div>
-      <div className="flex items-center gap-1 text-stone-500 text-sm">
+    <div className={`relative overflow-hidden rounded-2xl p-4 bg-linear-to-b ${theme.bg} flex flex-col items-center gap-3 text-center`}>
+      <Particles type={getParticles(weather.condition, isDay)} />
+      <FontAwesomeIcon icon={theme.icon} className={`text-3xl ${theme.iconClass}`} />
+      <div className={`font-semibold ${theme.text}`}>{weather.condition}</div>
+      <div className={`flex items-center gap-2 text-sm ${theme.sub}`}>
         <FontAwesomeIcon icon={faLocationDot} />
         <span>{weather.city}</span>
-      </div>
-      <div className="flex items-center gap-1 text-stone-400 text-xs">
-        <FontAwesomeIcon icon={isDay ? faSun : faMoon}/>
-        <span>{isDay ? "Journée" : "Nuit"}</span>
       </div>
     </div>
   );
