@@ -33,11 +33,11 @@ function WeatherCard() {
     ?? weatherThemes["Inconnu"][isDay ? "day" : "night"];
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-4 bg-linear-to-b ${theme.bg} flex flex-col items-center gap-3 text-center`}>
+    <div className={`relative overflow-hidden rounded-2xl p-4 bg-linear-to-b ${theme.bg} flex flex-col items-center gap-6 text-center`}>
       <Particles type={getParticles(weather.condition, isDay)} />
       <FontAwesomeIcon icon={theme.icon} className={`text-3xl ${theme.iconClass}`} />
-      <div className={`font-semibold ${theme.text}`}>{weather.condition}</div>
-      <div className={`flex items-center gap-2 text-sm ${theme.sub}`}>
+      <div className={`font-semibold text-3xl ${theme.text}`}>{weather.condition}</div>
+      <div className={`flex items-center gap-2 text-xl ${theme.sub}`}>
         <FontAwesomeIcon icon={faLocationDot} />
         <span>{weather.city}</span>
       </div>
