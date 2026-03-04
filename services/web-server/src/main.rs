@@ -23,13 +23,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let broker_host = env::var("MQTT_BROKER_HOST").unwrap_or_else(|_| "localhost".to_string());
     let state: SharedState = Arc::new(Mutex::new(WeatherData::default()));
 
-    let mut mqttoptions = MqttOptions::new("web-server", broker_host, 1883);
+    let broker_port: u16 = env::var("MQTT_BROKER_PORT")
+        .unwrap_or_else(|_| "1883".to_string())
+        .parse()
+        .unwrap_or(1883);
+
+    let mut mqttoptions = MqttOptions::new("web-server", broker_host, broker_port);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
-    let (_, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
     // On s'abonne à weather/current
     // Note: on a besoin du client pour subscribe, on le recrée proprement
-    let mut mqttoptions2 = MqttOptions::new("web-server", env::var("MQTT_BROKER_HOST").unwrap_or_else(|_| "localhost".to_string()), 1883);
+    let mut mqttoptions2 = MqttOptions::new("web-server", env::var("MQTT_BROKER_HOST").unwrap_or_else(|_| "localhost".to_string()), 2883);
     mqttoptions2.set_keep_alive(Duration::from_secs(5));
     let (client, mut eventloop) = AsyncClient::new(mqttoptions2, 10);
     client.subscribe("weather/current", QoS::AtLeastOnce).await?;
