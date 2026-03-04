@@ -69,7 +69,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let default_city = env::var("DEFAULT_CITY").unwrap_or_else(|_| "Valence".to_string());
 
     let broker_host = env::var("MQTT_BROKER_HOST").unwrap_or_else(|_| "localhost".to_string());
-    let mut mqttoptions = MqttOptions::new("weather-service", broker_host, 1883);
+    let broker_port: u16 = env::var("MQTT_BROKER_PORT")
+        .unwrap_or_else(|_| "1883".to_string())
+        .parse()
+        .unwrap_or(1883);
+
+    let mut mqttoptions = MqttOptions::new("weather-service", broker_host, broker_port);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
