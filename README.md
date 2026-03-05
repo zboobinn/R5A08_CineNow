@@ -136,7 +136,44 @@ cargo build
 
 ### Lancement
 
-//todo
+#### Mode développement
+
+Ouvrir un terminal par service, dans cet ordre :
+
+1. Lancer **Shiftr Desktop**
+
+2. **Weather Service** :
+```bash
+cargo run -p weather-service
+```
+
+3. **Movie Service** :
+```bash
+cargo run -p movie-service
+```
+
+4. **Recommendation Service** :
+```bash
+cargo run -p recommendation-service
+```
+
+5. **Web Server** :
+```bash
+cargo run -p web-server
+```
+
+6. **Interface UI** :
+```bash
+cd ui
+npm run tauri dev
+```
+
+#### Lancement via l'exécutable
+
+1. Lancer **Shiftr Desktop**
+2. Lancer les services dans l'ordre ci-dessus avec `cargo run`
+3. Lancer `ui/src-tauri/target/release/bundle/nsis/CineNow_0.1.0_x64-setup.exe` pour installer l'application
+4. Ouvrir **CineNow** depuis le bureau ou le menu démarrer
 
 ## 📚 Documentation
 
