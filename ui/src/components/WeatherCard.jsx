@@ -48,7 +48,6 @@ const requestLocation = () => {
     </div>
   );
 
-  // 👈 MISE À JOUR ICI : Ajout de toutes les particules
   function getParticles(condition, isDay) {
     if (condition === "Brouillard") return "fog";
     if (condition === "Orageux") return "thunder";
