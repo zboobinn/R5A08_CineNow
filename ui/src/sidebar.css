@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+* {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Animations Métiers (utilisées selon le code Rust) */
+
+/* Soleil qui tourne (utilisé pour type="sun") */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.sun-spin { animation: spin-slow 10s linear infinite; }
+
+/* Étoiles (utilisé pour type="stars") */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+.star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: white;
+  border-radius: 9999px;
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+/* Nuages qui dérivent (utilisé pour type="clouds") */
+@keyframes cloud-drift {
+  0% { transform: translateX(-20px); opacity: 0; }
+  20% { opacity: 0.5; }
+  80% { opacity: 0.5; }
+  100% { transform: translateX(100px); opacity: 0; }
+}
+.cloud-particle {
+  position: absolute;
+  font-size: 24px;
+  filter: blur(2px);
+  animation: cloud-drift 8s linear infinite;
+}
+
+/* Brouillard / Brume (utilisé pour type="fog") */
+@keyframes fog-move {
+  0%, 100% { transform: translateX(-5%); opacity: 0.3; }
+  50% { transform: translateX(5%); opacity: 0.6; }
+}
+.fog-layer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.2), transparent);
+  filter: blur(15px);
+  animation: fog-move 10s ease-in-out infinite;
+}
+
+/* Gouttes de pluie (utilisé pour type="rain" or "showers") */
+@keyframes rain-fall {
+  0% { transform: translateY(-10px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(60px); opacity: 0; }
+}
+.rain-drop {
+  position: absolute;
+  width: 2px;
+  height: 10px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 9999px;
+  animation: rain-fall 1s linear infinite;
+}
+
+/* Flocons (utilisé pour type="snow") */
+@keyframes snow-fall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(60px) rotate(180deg); opacity: 0; }
+}
+.snow-flake {
+  position: absolute;
+  color: white;
+  font-size: 10px;
+  animation: snow-fall 2s linear infinite;
+}
+
+/* Éclairs pour l'orage (utilisé pour type="thunder") */
+@keyframes flash {
+  0%, 90%, 100% { opacity: 0; }
+  92% { opacity: 0.6; }
+  94% { opacity: 0.1; }
+  96% { opacity: 0.8; }
+}
+.lightning {
+  position: absolute;
+  inset: 0;
+  background: white;
+  animation: flash 5s infinite;
+}
