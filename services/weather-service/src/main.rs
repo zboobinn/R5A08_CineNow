@@ -25,10 +25,11 @@ struct WeatherUpdate {
 fn translate_weather_code(code: i32) -> String {
     match code {
         0 => "Ensoleillé".to_string(),
-        1..=3 => "Nuageux".to_string(),
+        1..=41 => "Nuageux".to_string(),
+        42..=48 => "Brouillard".to_string(),
         51..=67 => "Pluie".to_string(),
         71..=77 => "Neige".to_string(),
-        80..=82 => "Averses".to_string(),
+        80..=86 => "Averses".to_string(),
         95..=99 => "Orageux".to_string(),
         _ => "Inconnu".to_string(),
     }

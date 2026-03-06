@@ -1,0 +1,15 @@
+/* App.css */
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Empêcher toute déformation globale des images de logo */
+img {
+  max-width: 100%;
+  height: auto;
+}
