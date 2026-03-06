@@ -25,11 +25,17 @@ struct WeatherUpdate {
     city: String,
 }
 
-// Décoder la position reçue
 #[derive(Deserialize)]
 struct LocationUpdate {
     lat: f32,
     lon: f32,
+}
+
+// 👈 1. Structure pour lire le nom de la ville
+#[derive(Debug, Deserialize)]
+struct GeoResponse {
+    city: Option<String>,
+    locality: Option<String>,
 }
 
 fn translate_weather_code(code: i32) -> String {
@@ -59,6 +65,28 @@ fn get_time_of_day(time_str: &str) -> String {
     }
 }
 
+// 👈 2. Fonction pour transformer (Lat, Lon) en Nom de ville
+async fn get_city_name(lat: f32, lon: f32) -> String {
+    let url = format!(
+        "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={}&longitude={}&localityLanguage=fr",
+        lat, lon
+    );
+
+    if let Ok(response) = reqwest::get(&url).await {
+        if let Ok(data) = response.json::<GeoResponse>().await {
+            // On essaie d'abord "city", sinon "locality" (pour les petits villages)
+            if let Some(city) = data.city.filter(|c| !c.is_empty()) {
+                return city;
+            }
+            if let Some(locality) = data.locality.filter(|l| !l.is_empty()) {
+                return locality;
+            }
+        }
+    }
+    // Si l'API échoue, on garde une valeur par défaut
+    "Position locale".to_string()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
@@ -80,21 +108,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     client.subscribe("weather/location", QoS::AtLeastOnce).await?;
 
-    // canal pour envoyer les new coordonnées à la boucle principale
     let (tx, mut rx) = watch::channel((default_lat, default_lon, default_city));
     let client_clone = client.clone();
 
-    // écoute les messages MQTT en permanence
+    // Boucle d'écoute MQTT
     tokio::spawn(async move {
         loop {
             match eventloop.poll().await {
                 Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(p))) => {
-                    // Si on reçoit un message sur le topic location...
                     if p.topic == "weather/location" {
                         if let Ok(loc) = serde_json::from_slice::<LocationUpdate>(&p.payload) {
                             println!("📍 Nouvelle localisation reçue : lat={}, lon={}", loc.lat, loc.lon);
-                            // On envoie les nouvelles données dans le canal, la ville devient "Position GPS"
-                            let _ = tx.send((loc.lat.to_string(), loc.lon.to_string(), "Position GPS".to_string()));
+                            
+                            // 👈 3. On attend que l'API nous donne le nom de la ville avant d'envoyer
+                            let city_name = get_city_name(loc.lat, loc.lon).await;
+                            println!("🗺️  Ville identifiée : {}", city_name);
+                            
+                            let _ = tx.send((loc.lat.to_string(), loc.lon.to_string(), city_name));
                         }
                     }
                 }
@@ -102,14 +132,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     eprintln!("Erreur MQTT: {:?}", e);
                     tokio::time::sleep(Duration::from_secs(1)).await;
                 }
-                _ => {} // On ignore les autres types d'événements MQTT (Ping, PubAck...)
+                _ => {}
             }
         }
     });
 
-    // Interroge l'API Météo
+    // Boucle API Météo
     loop {
-        // On récupère les valeurs actuelles du canal (les valeurs par défaut, ou celles reçues par MQTT)
         let (current_lat, current_lon, current_city) = rx.borrow().clone();
 
         println!("Recherche météo pour : {} ({}, {})", current_city, current_lat, current_lon);
@@ -135,7 +164,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // On attend 15 minutes OU une maj immédiate
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(900)) => {}
             _ = rx.changed() => {
