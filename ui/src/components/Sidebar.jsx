@@ -37,7 +37,7 @@ const Sidebar = () => {
         <img 
           src={logo} 
           alt="CineNow" 
-          className="w-40 h-auto object-contain shrink-0" 
+          className="w-28 h-auto object-contain shrink-0" 
         />
       </div>
       
