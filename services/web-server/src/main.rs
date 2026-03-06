@@ -8,7 +8,8 @@ use dotenvy::dotenv;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct WeatherData {
-    day: f32,
+    temp: f32,
+    period: String,
     condition: String,
     city: String,
 }
