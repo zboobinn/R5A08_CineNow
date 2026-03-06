@@ -12,43 +12,62 @@ function getParticles(condition, isDay) {
   return null;
 }
 
-const requestLocation = () => {
-  if ("geolocation" in navigator) {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        fetch("http://localhost:3001/location", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-          }),
-        }).catch((err) => console.error("Erreur envoi position :", err));
-      },
-      (error) => {
-        console.error("Erreur géolocalisation :", error.message);
-        alert("Impossible de récupérer votre position.");
-      }
-    );
-  } else {
-    alert("Géolocalisation non supportée.");
-  }
-};
-
 function WeatherCard() {
   const [weather, setWeather] = useState(null);
 
+  // 1. On sort cette fonction pour pouvoir l'appeler de n'importe où
+  const fetchWeather = () => {
+    fetch("http://localhost:3001/weather")
+      .then((res) => res.json())
+      .then((data) => setWeather(data))
+      .catch((err) => console.error("Erreur météo:", err));
+  };
+
   useEffect(() => {
-    const fetchWeather = () => {
-      fetch("http://localhost:3001/weather")
-        .then((res) => res.json())
-        .then((data) => setWeather(data))
-        .catch((err) => console.error("Erreur météo:", err));
-    };
     fetchWeather();
-    const interval = setInterval(fetchWeather, 30000);
+    const interval = setInterval(fetchWeather, 30000); // Mise à jour toutes les 30s
     return () => clearInterval(interval);
   }, []);
+
+  // 2. requestLocation est maintenant DANS le composant
+  const requestLocation = () => {
+    if ("geolocation" in navigator) {
+      console.log("⏳ Recherche de la position en cours...");
+      
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          
+          console.log(`📍 Coordonnées trouvées : Lat ${lat}, Lon ${lon}`);
+
+          fetch("http://localhost:3001/location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat, lon }),
+          })
+          .then((res) => {
+            if (res.ok) {
+              console.log("✅ Position envoyée ! Actualisation dans 1.5s...");
+              
+              // 3. LA MAGIE EST ICI : On attend 1.5 seconde (le temps que Rust interroge l'API météo)
+              // puis on force React à télécharger la nouvelle météo.
+              setTimeout(() => {
+                fetchWeather();
+              }, 1500);
+            }
+          })
+          .catch((err) => console.error("❌ Erreur envoi position :", err));
+        },
+        (error) => {
+          console.error("❌ Erreur géolocalisation :", error.message);
+          alert("Impossible de récupérer votre position.");
+        }
+      );
+    } else {
+      alert("Géolocalisation non supportée.");
+    }
+  };
 
   if (!weather || weather.condition === "") return (
     <div className="rounded-2xl p-5 bg-stone-100 text-stone-400 text-sm text-center">
@@ -63,33 +82,26 @@ function WeatherCard() {
   return (
     <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-b ${theme.bg} flex flex-col items-center text-center shadow-md`}>
       
-      {/* Particules en arrière-plan */}
       <Particles type={getParticles(weather.condition, isDay)} />
 
-      {/* Icône météo */}
       <div className="pt-6 pb-2 z-10">
         <FontAwesomeIcon icon={theme.icon} className={`text-6xl ${theme.iconClass}`} />
       </div>
 
-      {/* Température */}
       <div className={`text-5xl font-bold z-10 ${theme.text}`}>
         {Math.round(weather.temp)}°C
       </div>
 
-      {/* Condition */}
       <div className={`text-lg font-semibold mt-1 z-10 ${theme.text}`}>
         {weather.condition}
       </div>
 
-      {/* Période */}
       <div className={`text-sm mt-1 z-10 ${theme.sub}`}>
         {weather.period}
       </div>
 
-      {/* Séparateur */}
       <div className="w-full border-t border-white/10 mt-4" />
 
-      {/* Ville + bouton localisation */}
       <div className={`flex items-center justify-center gap-2 py-3 px-4 z-10 ${theme.sub} text-sm w-full`}>
         <FontAwesomeIcon icon={faLocationDot} />
         <span>{weather.city}</span>
