@@ -1,5 +1,5 @@
 import WeatherCard from "./components/WeatherCard";
-import logo from "./assets/cinenow2.png";
+import logo from "./assets/cinenow.png";
 
 function App() {
   return (
