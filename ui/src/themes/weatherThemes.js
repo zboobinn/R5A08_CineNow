@@ -11,7 +11,7 @@ export const weatherThemes = {
       iconClass: "text-yellow-300 sun-spin",
       text: "text-white",
       sub: "text-white/70",
-      particles: "sun", // J'ai mis "sun" ici au lieu de "none" pour utiliser ton animation
+      particles: "sun",
     },
     night: {
       bg: "from-indigo-950 to-blue-900",
@@ -29,7 +29,7 @@ export const weatherThemes = {
       iconClass: "text-white",
       text: "text-white",
       sub: "text-white/70",
-      particles: "clouds", // Remplacé "none" par "clouds"
+      particles: "clouds",
     },
     night: {
       bg: "from-gray-700 to-gray-900",
