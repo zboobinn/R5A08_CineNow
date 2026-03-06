@@ -1,6 +1,6 @@
 import {
   faSun, faCloud, faCloudRain, faSnowflake,
-  faCloudShowersHeavy, faBolt, faQuestion, faMoon
+  faCloudShowersHeavy, faBolt, faQuestion, faMoon, faSmog
 } from "@fortawesome/free-solid-svg-icons";
 
 export const weatherThemes = {
@@ -11,7 +11,7 @@ export const weatherThemes = {
       iconClass: "text-yellow-300 sun-spin",
       text: "text-white",
       sub: "text-white/70",
-      particles: "none",
+      particles: "sun", // J'ai mis "sun" ici au lieu de "none" pour utiliser ton animation
     },
     night: {
       bg: "from-indigo-950 to-blue-900",
@@ -29,7 +29,7 @@ export const weatherThemes = {
       iconClass: "text-white",
       text: "text-white",
       sub: "text-white/70",
-      particles: "none",
+      particles: "clouds", // Remplacé "none" par "clouds"
     },
     night: {
       bg: "from-gray-700 to-gray-900",
@@ -38,6 +38,24 @@ export const weatherThemes = {
       text: "text-white",
       sub: "text-white/60",
       particles: "clouds", 
+    }
+  },
+  "Brouillard": {
+    day: {
+      bg: "from-stone-400 to-stone-500",
+      icon: faSmog,
+      iconClass: "text-stone-200",
+      text: "text-white",
+      sub: "text-white/70",
+      particles: "fog",
+    },
+    night: {
+      bg: "from-stone-700 to-stone-800",
+      icon: faSmog,
+      iconClass: "text-stone-400",
+      text: "text-stone-200",
+      sub: "text-white/60",
+      particles: "fog",
     }
   },
   "Pluie": {
@@ -101,7 +119,7 @@ export const weatherThemes = {
       iconClass: "text-yellow-300",
       text: "text-white",
       sub: "text-white/70",
-      particles: "rain",
+      particles: "thunder", // Modifié "rain" en "thunder" pour avoir les éclairs
     },
     night: {
       bg: "from-gray-800 to-gray-950",
@@ -109,7 +127,7 @@ export const weatherThemes = {
       iconClass: "text-yellow-300",
       text: "text-white",
       sub: "text-white/60",
-      particles: "rain",
+      particles: "thunder", // Idem
     }                               
   },
   "Inconnu": {
