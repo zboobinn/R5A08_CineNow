@@ -23,7 +23,7 @@ const GENRES: &[(&str, u32, &str)] = &[
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Movie Service démarré...");
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     let tmdb_key = std::env::var("TMDB_API_KEY")
         .expect("TMDB_API_KEY manquante dans .env");

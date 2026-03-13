@@ -8,3 +8,5 @@ tokio = { workspace = true }
 rumqttc = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+dotenvy = { workspace = true }
+shared = { workspace = true }

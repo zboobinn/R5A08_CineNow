@@ -10,5 +10,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
 anyhow = { workspace = true }
-dotenv = "0.15"
-shared = { path = "../../shared" }
+dotenvy = { workspace = true }
+shared = { workspace = true }
+
+
