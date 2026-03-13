@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "cinenow",
+  "productName": "CinéNow",
   "version": "0.1.0",
   "identifier": "com.antoi.cinenow",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "cinenow",
+        "title": "CinéNow",
         "width": 800,
         "height": 600
       }
