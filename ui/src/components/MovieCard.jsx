@@ -15,9 +15,12 @@ function MovieCard({ movie }) {
         <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         {movie.release_date && (
           <div className="absolute top-3 left-3 px-2.5 py-1 bg-white/90 backdrop-blur-sm rounded-lg text-xs font-bold text-stone-800 shadow-sm">
-            {movie.release_date.slice(0, 4)}
+            {movie.genres}
           </div>
         )}
+        <div className="absolute top-3 right-3 px-2.5 py-1 bg-white/90 backdrop-blur-sm rounded-lg text-xs font-bold text-stone-800 shadow-sm">
+            {movie.release_date.slice(0, 4)}
+        </div>
       </div>
       <div className="p-4 flex flex-col flex-1 justify-between">
         <h3 className="font-bold text-stone-800 leading-tight mb-1 line-clamp-2 group-hover:text-orange-600 transition-colors">
