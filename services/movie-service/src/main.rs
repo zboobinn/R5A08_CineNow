@@ -1,60 +1,77 @@
 use anyhow::Result;
 use rumqttc::{MqttOptions, Client, QoS};
 use std::time::Duration;
-use reqwest;
 use serde_json::Value;
+
+const GENRES: &[(&str, u32, &str)] = &[
+    ("comedie", 35, "Comédie"),
+    ("romance", 10749, "Romance"),
+    ("animation", 16, "Animation"),
+    ("drame", 18, "Drame"),
+    ("action", 28, "Action"),
+    ("thriller", 53, "Thriller"),
+    ("guerre", 10752, "Guerre"),
+    ("horreur", 27, "Horreur"),
+    ("familial", 10751, "Familial"),
+    ("aventure", 12, "Aventure"),
+    ("fantastique", 14, "Fantastique"),
+    ("science-fiction", 878, "Science-Fiction"),
+    ("documentaire", 99, "Documentaire"),
+    ("histoire", 36, "Histoire"),
+];
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🎬 Movie Service");
-    println!("================");
-    
-    // 1. Charger .env
+    println!("Movie Service démarré...");
     dotenv::dotenv().ok();
-    
-    // 2. Récupérer clé TMDb
+
     let tmdb_key = std::env::var("TMDB_API_KEY")
         .expect("TMDB_API_KEY manquante dans .env");
-    
-    println!("✅ Clé TMDb chargée");
-    
-    // 3. Connexion MQTT
-    let mqtt_client = create_mqtt_client();
-    println!("✅ Connecté à MQTT");
-    
-    // 4. Récupérer films (on va créer cette fonction)
-    println!("📡 Récupération des films...");
-    let movies = fetch_popular_movies(&tmdb_key).await?;
-    println!("✅ {} films récupérés", movies.len());
 
-    println!("✅ {} films récupérés", movies.len());
-    println!("");
-    println!("📽️  Aperçu des films :");
-    for (i, movie) in movies.iter().take(5).enumerate() {
-        println!("  {}. {} (Note: {}/10)", i + 1, movie.title, movie.rating);
+    let broker_host = std::env::var("MQTT_BROKER_HOST")
+        .unwrap_or_else(|_| "localhost".to_string());
+    let broker_port: u16 = std::env::var("MQTT_BROKER_PORT")
+        .unwrap_or_else(|_| "1883".to_string())
+        .parse()
+        .unwrap_or(1883);
+
+    let mqtt_client = create_mqtt_client(&broker_host, broker_port);
+    println!("Connecté à MQTT");
+
+    loop {
+        println!("Récupération des films par genre...");
+
+        for (topic_name, genre_id, genre_label) in GENRES {
+            match fetch_movies_by_genre(&tmdb_key, *genre_id, genre_label).await {
+                Ok(movies) => {
+                    println!(" {} : {} films", genre_label, movies.len());
+                    let catalog = shared::MovieCatalog {
+                        movies,
+                        total: 20,
+                    };
+                    if let Ok(json) = serde_json::to_string(&catalog) {
+                        let topic = format!("movies/{}", topic_name);
+                        let _ = mqtt_client.publish(&topic, QoS::AtLeastOnce, true, json.as_bytes());
+                    }
+                }
+                Err(e) => eprintln!(" Erreur {} : {}", genre_label, e),
+            }
+            // Petite pause pour ne pas spammer l'API TMDb
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+
+        println!("Tous les genres publiés sur MQTT !");
+        println!("Prochain fetch dans 24h...");
+        tokio::time::sleep(Duration::from_secs(86400)).await;
     }
-    println!("  ... et {} autres films", movies.len().saturating_sub(5));
-    
-    // 5. Publier sur MQTT
-    publish_movies(&mqtt_client, &movies)?;
-    println!("✅ Films publiés sur MQTT");
-    
-    println!("");
-    println!("📊 Vérifier : http://localhost:3000");
-    
-    // Garder actif
-    tokio::time::sleep(Duration::from_secs(10)).await;
-    
-    Ok(())
 }
 
-// Fonction de connexion MQTT
-fn create_mqtt_client() -> Client {
-    let mut opts = MqttOptions::new("movie-service", "localhost", 1883);
+fn create_mqtt_client(host: &str, port: u16) -> Client {
+    let mut opts = MqttOptions::new("movie-service", host, port);
     opts.set_keep_alive(Duration::from_secs(5));
-    
+
     let (client, mut connection) = Client::new(opts, 10);
-    
+
     std::thread::spawn(move || {
         for notification in connection.iter() {
             if let Err(e) = notification {
@@ -62,60 +79,47 @@ fn create_mqtt_client() -> Client {
             }
         }
     });
-    
+
     std::thread::sleep(Duration::from_millis(500));
     client
 }
 
-async fn fetch_popular_movies(api_key: &str) -> Result<Vec<shared::Movie>> {
+async fn fetch_movies_by_genre(api_key: &str, genre_id: u32, genre_label: &str) -> Result<Vec<shared::Movie>> {
     let url = format!(
-        "https://api.themoviedb.org/3/movie/popular?api_key={}&language=fr-FR&page=1",
-        api_key
+        "https://api.themoviedb.org/3/discover/movie?api_key={}&language=fr-FR&with_genres={}&sort_by=popularity.desc&page=1",
+        api_key, genre_id
     );
-    
-    // Appel API
+
     let response = reqwest::get(&url).await?;
     let json: Value = response.json().await?;
-    
-    // Parser les résultats
+
     let results = json["results"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("Pas de résultats"))?;
-    
-    // Convertir en Movie
-    let movies: Vec<shared::Movie> = results
-        .iter()
-        .filter_map(|item| {
-            Some(shared::Movie {
-                id: item["id"].as_u64()? as u32,
-                title: item["title"].as_str()?.to_string(),
-                genres: vec![], // On va améliorer ça après
-                rating: item["vote_average"].as_f64()? as f32,
-                poster_path: item["poster_path"]
-                    .as_str()
-                    .map(|p| format!("https://image.tmdb.org/t/p/w500{}", p)),
-                overview: item["overview"].as_str()?.to_string(),
-            })
-        })
-        .collect();
-    
-    Ok(movies)
-}
 
-fn publish_movies(client: &Client, movies: &[shared::Movie]) -> Result<()> {
-    let catalog = shared::MovieCatalog {
-        movies: movies.to_vec(),
-        total: movies.len(),
-    };
-    
-    let json = serde_json::to_string(&catalog)?;
-    
-    client.publish(
-        "movies/catalog",
-        QoS::AtLeastOnce,
-        true, // retained = true
-        json.as_bytes()
-    )?;
-    
-    Ok(())
+    let movies: Vec<shared::Movie> = results
+    .iter()
+    .take(20)
+    .filter_map(|item| {
+        let overview = item["overview"]
+            .as_str()
+            .unwrap_or("")
+            .chars()
+            .take(200) 
+            .collect::<String>();
+
+        Some(shared::Movie {
+            id: item["id"].as_u64()? as u32,
+            title: item["title"].as_str()?.to_string(),
+            genres: vec![genre_label.to_string()],
+            rating: item["vote_average"].as_f64()? as f32,
+            poster_path: item["poster_path"]
+                .as_str()
+                .map(|p| format!("https://image.tmdb.org/t/p/w500{}", p)),
+            overview,
+        })
+    })
+    .collect();
+
+    Ok(movies)
 }
