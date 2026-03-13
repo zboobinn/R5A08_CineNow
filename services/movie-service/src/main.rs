@@ -117,6 +117,7 @@ async fn fetch_movies_by_genre(api_key: &str, genre_id: u32, genre_label: &str) 
                 .as_str()
                 .map(|p| format!("https://image.tmdb.org/t/p/w500{}", p)),
             overview,
+            release_date: item["release_date"].as_str().map(|d| d.to_string()),
         })
     })
     .collect();

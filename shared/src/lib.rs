@@ -23,6 +23,7 @@ pub struct Movie {
     pub rating: f32,
     pub poster_path: Option<String>,
     pub overview: String,
+    pub release_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
