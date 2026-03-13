@@ -20,6 +20,9 @@ const GENRES: &[(&str, u32, &str)] = &[
     ("histoire", 36, "Histoire"),
 ];
 
+const PAGES: u32 = 5;
+const MAX_MOVIES: usize = 30;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Movie Service démarré...");
@@ -44,11 +47,12 @@ async fn main() -> Result<()> {
         for (topic_name, genre_id, genre_label) in GENRES {
             match fetch_movies_by_genre(&tmdb_key, *genre_id, genre_label).await {
                 Ok(movies) => {
-                    println!(" {} : {} films", genre_label, movies.len());
+                    let count = movies.len();
                     let catalog = shared::MovieCatalog {
+                        total: count,
                         movies,
-                        total: 20,
                     };
+                    println!(" {} : {} films", genre_label, count);
                     if let Ok(json) = serde_json::to_string(&catalog) {
                         let topic = format!("movies/{}", topic_name);
                         let _ = mqtt_client.publish(&topic, QoS::AtLeastOnce, true, json.as_bytes());
@@ -56,7 +60,6 @@ async fn main() -> Result<()> {
                 }
                 Err(e) => eprintln!(" Erreur {} : {}", genre_label, e),
             }
-            // Petite pause pour ne pas spammer l'API TMDb
             tokio::time::sleep(Duration::from_millis(250)).await;
         }
 
@@ -85,42 +88,51 @@ fn create_mqtt_client(host: &str, port: u16) -> Client {
 }
 
 async fn fetch_movies_by_genre(api_key: &str, genre_id: u32, genre_label: &str) -> Result<Vec<shared::Movie>> {
-    let url = format!(
-        "https://api.themoviedb.org/3/discover/movie?api_key={}&language=fr-FR&with_genres={}&sort_by=popularity.desc&page=1",
-        api_key, genre_id
-    );
+    let mut all_movies: Vec<shared::Movie> = Vec::new();
 
-    let response = reqwest::get(&url).await?;
-    let json: Value = response.json().await?;
+    for page in 1..=PAGES {
+        let url = format!(
+            "https://api.themoviedb.org/3/discover/movie?api_key={}&language=fr-FR&with_genres={}&sort_by=popularity.desc&page={}",
+            api_key, genre_id, page
+        );
 
-    let results = json["results"]
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("Pas de résultats"))?;
+        let response = reqwest::get(&url).await?;
+        let json: Value = response.json().await?;
 
-    let movies: Vec<shared::Movie> = results
-    .iter()
-    .take(20)
-    .filter_map(|item| {
-        let overview = item["overview"]
-            .as_str()
-            .unwrap_or("")
-            .chars()
-            .take(200) 
-            .collect::<String>();
+        let results = match json["results"].as_array() {
+            Some(r) => r,
+            None => break,
+        };
 
-        Some(shared::Movie {
-            id: item["id"].as_u64()? as u32,
-            title: item["title"].as_str()?.to_string(),
-            genres: vec![genre_label.to_string()],
-            rating: item["vote_average"].as_f64()? as f32,
-            poster_path: item["poster_path"]
-                .as_str()
-                .map(|p| format!("https://image.tmdb.org/t/p/w500{}", p)),
-            overview,
-            release_date: item["release_date"].as_str().map(|d| d.to_string()),
-        })
-    })
-    .collect();
+        let movies: Vec<shared::Movie> = results
+            .iter()
+            .filter_map(|item| {
+                let overview = item["overview"]
+                    .as_str()
+                    .unwrap_or("")
+                    .chars()
+                    .take(100)
+                    .collect::<String>();
 
-    Ok(movies)
+                Some(shared::Movie {
+                    id: item["id"].as_u64()? as u32,
+                    title: item["title"].as_str()?.to_string(),
+                    genres: vec![genre_label.to_string()],
+                    rating: item["vote_average"].as_f64()? as f32,
+                    poster_path: item["poster_path"]
+                        .as_str()
+                        .map(|p| format!("https://image.tmdb.org/t/p/w500{}", p)),
+                    overview,
+                    release_date: item["release_date"].as_str().map(|d: &str| d.to_string()),
+                })
+            })
+            .collect();
+
+        all_movies.extend(movies);
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+
+    all_movies.dedup_by_key(|m| m.id);
+    all_movies.truncate(MAX_MOVIES);
+    Ok(all_movies)
 }

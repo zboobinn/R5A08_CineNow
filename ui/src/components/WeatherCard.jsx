@@ -16,7 +16,6 @@ function getParticles(condition, isDay) {
 function WeatherCard() {
   const [weather, setWeather] = useState(null);
 
-  // 1. On sort cette fonction pour pouvoir l'appeler de n'importe où
   const fetchWeather = () => {
     fetch("http://localhost:3001/weather")
       .then((res) => res.json())
@@ -30,7 +29,6 @@ function WeatherCard() {
     return () => clearInterval(interval);
   }, []);
 
-  // 2. requestLocation est maintenant DANS le composant
   const requestLocation = () => {
     if ("geolocation" in navigator) {
       console.log("⏳ Recherche de la position en cours...");
@@ -51,8 +49,6 @@ function WeatherCard() {
             if (res.ok) {
               console.log("✅ Position envoyée ! Actualisation dans 1.5s...");
               
-              // 3. LA MAGIE EST ICI : On attend 1.5 seconde (le temps que Rust interroge l'API météo)
-              // puis on force React à télécharger la nouvelle météo.
               setTimeout(() => {
                 fetchWeather();
               }, 1500);

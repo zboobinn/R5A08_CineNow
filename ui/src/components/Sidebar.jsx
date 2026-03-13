@@ -20,7 +20,7 @@ const Sidebar = ({ selectedMoods, onToggle, onRecommend, onReset }) => {
               onClick={onRecommend}
               className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-all shadow-sm"
             >
-              🎬 Recommander
+              Recommander
             </button>
             <button
               onClick={onReset}

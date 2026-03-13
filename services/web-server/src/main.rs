@@ -35,7 +35,6 @@ struct MoodPayload {
 #[derive(Debug, Deserialize)]
 struct RecommendedMovie {
     id: u32,
-    score: f32,
 }
 
 #[derive(Clone)]
@@ -57,7 +56,7 @@ const MOVIE_TOPICS: &[&str] = &[
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    println!("🚀 Web Server démarré...");
+    println!("Web Server démarré...");
 
     let broker_host = env::var("MQTT_BROKER_HOST").unwrap_or_else(|_| "localhost".to_string());
     let broker_port: u16 = env::var("MQTT_BROKER_PORT")
@@ -88,13 +87,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if msg.topic == "weather/current" {
                         if let Ok(data) = serde_json::from_str::<WeatherData>(&payload) {
                             *weather_clone.lock().await = data;
-                            println!("🌤️  Météo mise à jour");
+                            println!("Météo mise à jour");
                         }
                     } else if msg.topic.starts_with("movies/") {
                         if let Ok(catalog) = serde_json::from_str::<MovieCatalog>(&payload) {
                             let genre = msg.topic.replace("movies/", "");
                             movies_clone.lock().await.insert(genre.clone(), catalog.movies);
-                            println!("🎬 Films mis à jour : {}", genre);
+                            println!("Films mis à jour : {}", genre);
                         }
                     } else if msg.topic == "recommendations/result" {
                         if let Ok(reco) = serde_json::from_str::<Vec<RecommendedMovie>>(&payload) {
@@ -112,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .filter_map(|r| all_movies.get(&r.id).map(|m| (*m).clone()))
                                 .collect();
 
-                            println!("⭐ Recommandations reçues : {} films", result.len());
+                            println!("Recommandations reçues : {} films", result.len());
                             *recommendations_clone.lock().await = result;
                         }
                     }
@@ -152,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await?;
-    println!("🌐 API dispo sur http://localhost:3001");
+    println!("API dispo sur http://localhost:3001");
     axum::serve(listener, app).await?;
 
     Ok(())
@@ -174,7 +173,7 @@ async fn post_mood(
     State(state): State<AppState>,
     Json(payload): Json<MoodPayload>,
 ) -> Json<serde_json::Value> {
-    println!("💡 Humeur reçue : {:?}", payload.moods);
+    println!("Humeur reçue : {:?}", payload.moods);
     if let Ok(mqtt_msg) = serde_json::to_string(&payload) {
         let _ = state.mqtt_client.publish("mood/selected", QoS::AtLeastOnce, false, mqtt_msg).await;
     }
@@ -185,7 +184,7 @@ async fn post_location(
     State(state): State<AppState>,
     Json(payload): Json<LocationData>,
 ) -> Json<serde_json::Value> {
-    println!("📍 Position reçue (Lat: {}, Lon: {})", payload.lat, payload.lon);
+    println!("Position reçue (Lat: {}, Lon: {})", payload.lat, payload.lon);
     if let Ok(mqtt_msg) = serde_json::to_string(&payload) {
         let _ = state.mqtt_client.publish("weather/location", QoS::AtLeastOnce, false, mqtt_msg).await;
     }

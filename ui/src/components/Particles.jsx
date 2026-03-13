@@ -2,7 +2,6 @@ import React from 'react';
 
 export function Particles({ type }) {
   // 1. SOLEIL / ÉTOILES (utilise day pour le soleil, Stars pour la nuit)
-  // Note: La logique de condition (Jour/Nuit) doit être faite dans le parent (ex: WeatherCard)
 
   // 1. SOLAIL (Jour) et ÉTOILES (Nuit)
   // Si le parent envoie 'stars'

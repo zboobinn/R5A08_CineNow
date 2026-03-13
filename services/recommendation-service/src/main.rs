@@ -42,12 +42,13 @@ struct State {
 }
 
 /// Retourne les genres recommandés avec leur multiplicateur pour une humeur + météo donnés
-fn get_genre_weights(mood: &str, condition: &str) -> Vec<(&'static str, f32)> {
-    let is_night = condition == "Nuit";
+fn get_genre_weights(mood: &str, condition: &str, period: &str) -> Vec<(&'static str, f32)> {
+    let is_night = period == "Nuit" || period == "Soir";
     let is_rain = matches!(condition, "Pluie" | "Averses" | "Orageux");
     let is_sun = condition == "Ensoleillé";
     let is_cloudy = matches!(condition, "Nuageux" | "Brouillard");
-
+    
+    
     match mood {
         "joy" => {
             if is_sun    { vec![("comedie", 1.5), ("romance", 1.5), ("animation", 1.4)] }
@@ -99,8 +100,7 @@ async fn compute_recommendations(
     let mut scores: HashMap<u32, f32> = HashMap::new();
 
     for mood in moods {
-        let weights = get_genre_weights(mood, &weather.condition);
-
+        let weights = get_genre_weights(mood, &weather.condition, &weather.period);
         for (genre, multiplier) in &weights {
             if let Some(films) = movies_by_genre.get(*genre) {
                 for film in films {
@@ -129,7 +129,7 @@ async fn compute_recommendations(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    println!("🎬 Recommendation Service démarré...");
+    println!("Recommendation Service démarré...");
 
     let broker_host = env::var("MQTT_BROKER_HOST").unwrap_or_else(|_| "localhost".to_string());
     let broker_port: u16 = env::var("MQTT_BROKER_PORT")
@@ -167,7 +167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     } else if msg.topic == TOPIC_MOOD {
                         if let Ok(mood_data) = serde_json::from_str::<MoodPayload>(&payload) {
-                            println!("💡 Humeur reçue : {:?}", mood_data.moods);
+                            println!("Humeur reçue : {:?}", mood_data.moods);
 
                             let weather = state_clone.weather.lock().await.clone();
                             let movies = state_clone.movies.lock().await.clone();
@@ -178,7 +178,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 &movies,
                             ).await;
 
-                            println!("✅ {} films recommandés", recommendations.len());
+                            println!("{} films recommandés", recommendations.len());
 
                             if let Ok(json) = serde_json::to_string(&recommendations) {
                                 let _ = client_clone
@@ -204,7 +204,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         client.subscribe(*topic, QoS::AtLeastOnce).await?;
     }
 
-    println!("📡 Abonné aux topics, en attente...");
+    println!("Abonné aux topics, en attente...");
 
     // Garder le main en vie
     tokio::signal::ctrl_c().await?;

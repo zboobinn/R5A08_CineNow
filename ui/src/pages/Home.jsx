@@ -63,11 +63,13 @@ const Home = ({ recommendations }) => {
           <h1 className="text-4xl font-bold text-stone-900 tracking-tight mb-2">
             {isRecommendationMode ? "Pour toi ce soir" : "Sorties récentes"}
           </h1>
+          
           <p className="text-stone-500 text-lg">
             {isRecommendationMode
               ? `${recommendations.length} films sélectionnés selon ton humeur et la météo.`
               : "Les films les plus récents du catalogue."}
           </p>
+          
         </div>
 
         <div className="relative w-full md:w-96 group">

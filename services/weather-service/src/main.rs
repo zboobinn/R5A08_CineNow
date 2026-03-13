@@ -31,7 +31,6 @@ struct LocationUpdate {
     lon: f32,
 }
 
-// 👈 1. Structure pour lire le nom de la ville
 #[derive(Debug, Deserialize)]
 struct GeoResponse {
     city: Option<String>,
@@ -65,7 +64,6 @@ fn get_time_of_day(time_str: &str) -> String {
     }
 }
 
-// 👈 2. Fonction pour transformer (Lat, Lon) en Nom de ville
 async fn get_city_name(lat: f32, lon: f32) -> String {
     let url = format!(
         "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={}&longitude={}&localityLanguage=fr",
@@ -90,7 +88,7 @@ async fn get_city_name(lat: f32, lon: f32) -> String {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
-    println!("🚀 Weather Service démarré...");
+    println!("Weather Service démarré...");
 
     let default_lat = env::var("DEFAULT_LATITUDE").unwrap_or_else(|_| "44.9155".to_string());
     let default_lon = env::var("DEFAULT_LONGITUDE").unwrap_or_else(|_| "4.9147".to_string());
@@ -118,11 +116,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(p))) => {
                     if p.topic == "weather/location" {
                         if let Ok(loc) = serde_json::from_slice::<LocationUpdate>(&p.payload) {
-                            println!("📍 Nouvelle localisation reçue : lat={}, lon={}", loc.lat, loc.lon);
+                            println!("Nouvelle localisation reçue : lat={}, lon={}", loc.lat, loc.lon);
                             
-                            // 👈 3. On attend que l'API nous donne le nom de la ville avant d'envoyer
                             let city_name = get_city_name(loc.lat, loc.lon).await;
-                            println!("🗺️  Ville identifiée : {}", city_name);
+                            println!("Ville identifiée : {}", city_name);
                             
                             let _ = tx.send((loc.lat.to_string(), loc.lon.to_string(), city_name));
                         }
@@ -159,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 if let Ok(payload) = serde_json::to_string(&update) {
                     let _ = client_clone.publish("weather/current", QoS::AtLeastOnce, true, payload).await;
-                    println!("📡 Météo envoyée : {}°C, {}", update.temp, update.condition);
+                    println!("Météo envoyée : {}°C, {}", update.temp, update.condition);
                 }
             }
         }
@@ -167,7 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(900)) => {}
             _ = rx.changed() => {
-                println!("⚡ Position mise à jour ! Actualisation météo immédiate...");
+                println!("Position mise à jour ! Actualisation météo immédiate...");
             }
         }
     }
