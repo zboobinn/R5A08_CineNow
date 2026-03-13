@@ -210,3 +210,103 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::signal::ctrl_c().await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_movie(id: u32, genre: &str, rating: f32) -> shared::Movie {
+        shared::Movie {
+            id,
+            title: format!("Film {}", id),
+            genres: vec![genre.to_string()],
+            rating,
+            poster_path: None,
+            overview: String::new(),
+            release_date: None,
+        }
+    }
+
+    // --- get_genre_weights ---
+
+    #[test]
+    fn test_joy_soleil() {
+        let weights = get_genre_weights("joy", "Ensoleillé", "Matin");
+        assert!(weights.iter().any(|(g, w)| *g == "comedie" && *w == 1.5));
+        assert!(weights.iter().any(|(g, w)| *g == "romance" && *w == 1.5));
+    }
+
+    #[test]
+    fn test_joy_pluie() {
+        let weights = get_genre_weights("joy", "Pluie", "Après-midi");
+        assert!(weights.iter().any(|(g, _)| *g == "comedie"));
+        assert!(weights.iter().all(|(_, w)| *w <= 1.3));
+    }
+
+    #[test]
+    fn test_sad_pluie() {
+        let weights = get_genre_weights("sad", "Pluie", "Soir");
+        assert!(weights.iter().any(|(g, w)| *g == "drame" && *w == 1.5));
+    }
+
+    #[test]
+    fn test_angry_orageux() {
+        let weights = get_genre_weights("angry", "Orageux", "Nuit");
+        assert!(weights.iter().any(|(g, w)| *g == "action" && *w == 1.5));
+        assert!(weights.iter().any(|(g, w)| *g == "thriller" && *w == 1.5));
+    }
+
+    #[test]
+    fn test_fear_nuit() {
+        let weights = get_genre_weights("fear", "Nuageux", "Nuit");
+        assert!(weights.iter().any(|(g, _)| *g == "horreur" || *g == "thriller"));
+    }
+
+    #[test]
+    fn test_fear_soleil() {
+        let weights = get_genre_weights("fear", "Ensoleillé", "Matin");
+        // Le soleil avec peur → films rassurants
+        assert!(weights.iter().any(|(g, w)| *g == "comedie" && *w == 1.5));
+    }
+
+    #[test]
+    fn test_humeur_inconnue() {
+        let weights = get_genre_weights("unknown", "Pluie", "Soir");
+        // Doit retourner des valeurs par défaut sans paniquer
+        assert!(!weights.is_empty());
+        assert!(weights.iter().all(|(_, w)| *w == 1.0));
+    }
+
+    // --- compute_score ---
+
+    #[test]
+    fn test_compute_score_genre_matching() {
+        let movie = make_movie(1, "comedie", 7.5);
+        let score = compute_score(&movie, "comedie", 1.5);
+        // "Comédie" contient "com" mais pas exactement "comedie" → vérifie le comportement
+        // Le genre est "Comédie", on cherche "comedie" → contains insensible à la casse
+        assert_eq!(score, 7.5 * 1.5);
+    }
+
+    #[test]
+    fn test_compute_score_genre_non_matching() {
+        let movie = make_movie(2, "Action", 8.0);
+        let score = compute_score(&movie, "comedie", 1.5);
+        // Genre ne correspond pas → score = rating sans multiplicateur
+        assert_eq!(score, 8.0);
+    }
+
+    #[test]
+    fn test_compute_score_rating_zero() {
+        let movie = make_movie(3, "Drame", 0.0);
+        let score = compute_score(&movie, "drame", 1.5);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn test_compute_score_multiplicateur_neutre() {
+        let movie = make_movie(4, "Horreur", 6.0);
+        let score = compute_score(&movie, "horreur", 1.0);
+        assert_eq!(score, 6.0);
+    }
+}

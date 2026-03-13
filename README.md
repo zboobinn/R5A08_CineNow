@@ -136,49 +136,35 @@ cargo build
 
 ### Lancement
 
+#### Windows
+
 #### Mode développement
 
-Ouvrir un terminal par service, dans cet ordre :
+1. Lancer **Shiftr Desktop**
+2. Exécuter le script :
+```powershell
+.\scripts\run-dev.ps1
+```
+
+#### Mode release
 
 1. Lancer **Shiftr Desktop**
-
-2. **Weather Service** :
-```bash
-cargo run -p weather-service
+2. Exécuter le script (compile + lance les services + ouvre le dossier) :
+```powershell
+.\scripts\run-release.ps1
 ```
+3. Double-cliquer sur l'exe **Ciné-Now** dans le dossier qui s'ouvre
 
-3. **Movie Service** :
-```bash
-cargo run -p movie-service
-```
 
-4. **Recommendation Service** :
-```bash
-cargo run -p recommendation-service
-```
+#### Linux
 
-5. **Web Server** :
-```bash
-cargo run -p web-server
-```
-
-6. **Interface UI** :
-```bash
-cd ui
-npm run tauri dev
-```
-
-#### Lancement via l'exécutable
-
-1. Lancer **Shiftr Desktop**
-2. Lancer les services dans l'ordre ci-dessus avec `cargo run`
-3. Lancer `ui/src-tauri/target/release/bundle/nsis/CineNow_0.1.0_x64-setup.exe` pour installer l'application
-4. Ouvrir **CineNow** depuis le bureau ou le menu démarrer
+#### Mode développement (à venir)
+#### Mode release (à venir)
 
 ## 📚 Documentation
 
 - [Cahier des charges](docs/cahier_des_charges.md)
-- [Architecture détaillée](docs/architecture.md) (à venir)
+
 
 ## 🧪 Tests
 
