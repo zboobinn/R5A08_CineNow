@@ -4,6 +4,7 @@ import { faLocationDot, faCrosshairs } from "@fortawesome/free-solid-svg-icons";
 import { weatherThemes } from "../themes/weatherThemes";
 import { Particles } from "./Particles";
 
+
 function getParticles(condition, isDay) {
   if (condition === "Pluie" || condition === "Averses") return "rain";
   if (condition === "Orageux") return "rain";
@@ -80,7 +81,7 @@ function WeatherCard() {
     ?? weatherThemes["Nuageux"][isDay ? "day" : "night"];
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-b ${theme.bg} flex flex-col items-center text-center shadow-md`}>
+    <div className={`relative overflow-hidden rounded-2xl bg-linear-to-b ${theme.bg} flex flex-col items-center text-center shadow-md`}>
       
       <Particles type={getParticles(weather.condition, isDay)} />
 

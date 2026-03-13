@@ -7,7 +7,8 @@ use axum::{
 use dotenvy::dotenv;
 use rumqttc::{AsyncClient, MqttOptions, Packet, QoS};
 use serde::{Deserialize, Serialize};
-use std::{env, sync::Arc, time::Duration};
+use shared::{Movie, MovieCatalog};
+use std::{collections::HashMap, env, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -19,19 +20,26 @@ struct WeatherData {
     city: String,
 }
 
-// 👈 1. Nouvelle structure pour décoder le JSON reçu de React
 #[derive(Debug, Deserialize, Serialize)]
 struct LocationData {
     lat: f32,
     lon: f32,
 }
 
-// 👈 2. Nouvel état partagé (Contient tes données Météo ET le client MQTT)
 #[derive(Clone)]
 struct AppState {
     weather: Arc<Mutex<WeatherData>>,
+    movies: Arc<Mutex<HashMap<String, Vec<Movie>>>>,
     mqtt_client: AsyncClient,
 }
+
+const MOVIE_TOPICS: &[&str] = &[
+    "movies/comedie", "movies/romance", "movies/animation",
+    "movies/drame", "movies/action", "movies/thriller",
+    "movies/guerre", "movies/horreur", "movies/familial",
+    "movies/aventure", "movies/fantastique", "movies/science-fiction",
+    "movies/documentaire", "movies/histoire",
+];
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -44,25 +52,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .parse()
         .unwrap_or(1883);
 
-    // J'ai nettoyé tes variables mqttoptions (il n'y en a plus qu'une seule)
     let mut mqttoptions = MqttOptions::new("web-server", broker_host, broker_port);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
 
-    let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    client.subscribe("weather/current", QoS::AtLeastOnce).await?;
+    let (client, mut eventloop) = AsyncClient::new(mqttoptions, 20);
 
     let weather_state = Arc::new(Mutex::new(WeatherData::default()));
-    let weather_state_clone = weather_state.clone();
+    let movies_state: Arc<Mutex<HashMap<String, Vec<Movie>>>> = Arc::new(Mutex::new(HashMap::new()));
 
-    // Boucle d'écoute MQTT
+    let weather_clone = weather_state.clone();
+    let movies_clone = movies_state.clone();
+
+    // Spawn l'eventloop EN PREMIER
     tokio::spawn(async move {
         loop {
             match eventloop.poll().await {
                 Ok(rumqttc::Event::Incoming(Packet::Publish(msg))) => {
                     let payload = String::from_utf8_lossy(&msg.payload);
-                    if let Ok(data) = serde_json::from_str::<WeatherData>(&payload) {
-                        *weather_state_clone.lock().await = data;
-                        println!("🌤️  Météo mise à jour dans le serveur Web");
+                    if msg.topic == "weather/current" {
+                        if let Ok(data) = serde_json::from_str::<WeatherData>(&payload) {
+                            *weather_clone.lock().await = data;
+                            println!("🌤️  Météo mise à jour");
+                        }
+                    } else if msg.topic.starts_with("movies/") {
+                        if let Ok(catalog) = serde_json::from_str::<MovieCatalog>(&payload) {
+                            let genre = msg.topic.replace("movies/", "");
+                            movies_clone.lock().await.insert(genre.clone(), catalog.movies);
+                            println!("🎬 Films mis à jour : {}", genre);
+                        }
                     }
                 }
                 Err(e) => eprintln!("Erreur MQTT: {:?}", e),
@@ -71,13 +88,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // 👈 3. Création de l'état global de l'application
+    // ENSUITE les subscribes
+    client.subscribe("weather/current", QoS::AtLeastOnce).await?;
+    for topic in MOVIE_TOPICS {
+        client.subscribe(*topic, QoS::AtLeastOnce).await?;
+    }
+
     let app_state = AppState {
         weather: weather_state,
-        mqtt_client: client, // On donne le client MQTT pour l'utiliser dans nos routes
+        movies: movies_state,
+        mqtt_client: client,
     };
 
-    // 👈 4. On ajoute Method::POST au CORS pour que React ait le droit de nous envoyer des données
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
         .allow_headers(Any)
@@ -85,7 +107,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/weather", get(get_weather))
-        .route("/location", post(post_location)) // 👈 5. Ajout de la nouvelle route
+        .route("/movies", get(get_movies))
+        .route("/location", post(post_location))
         .with_state(app_state)
         .layer(cors);
 
@@ -96,23 +119,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// Handler GET
 async fn get_weather(State(state): State<AppState>) -> Json<WeatherData> {
     Json(state.weather.lock().await.clone())
 }
 
-// 👈 6. Nouveau Handler POST
+async fn get_movies(State(state): State<AppState>) -> Json<HashMap<String, Vec<Movie>>> {
+    Json(state.movies.lock().await.clone())
+}
+
 async fn post_location(
     State(state): State<AppState>,
-    Json(payload): Json<LocationData>, // Extrait automatiquement le { lat, lon } de React
+    Json(payload): Json<LocationData>,
 ) -> Json<serde_json::Value> {
-    println!("📍 API Web : Coordonnées reçues (Lat: {}, Lon: {}). Transfert vers MQTT...", payload.lat, payload.lon);
-    
-    // On transforme les coordonnées en texte et on les publie sur le broker MQTT
+    println!("📍 Position reçue (Lat: {}, Lon: {})", payload.lat, payload.lon);
     if let Ok(mqtt_msg) = serde_json::to_string(&payload) {
         let _ = state.mqtt_client.publish("weather/location", QoS::AtLeastOnce, false, mqtt_msg).await;
     }
-
-    // On répond à React que tout s'est bien passé (Status 200 OK par défaut)
-    Json(serde_json::json!({ "status": "success", "message": "Position transmise au réseau MQTT" }))
+    Json(serde_json::json!({ "status": "success" }))
 }
