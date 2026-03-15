@@ -41,49 +41,80 @@ struct State {
     movies: Arc<Mutex<HashMap<String, Vec<shared::Movie>>>>,
 }
 
-/// Retourne les genres recommandés avec leur multiplicateur pour une humeur + météo donnés
+/// Retourne les genres recommandés avec leur multiplicateur pour une humeur + météo + période donnés
 fn get_genre_weights(mood: &str, condition: &str, period: &str) -> Vec<(&'static str, f32)> {
     let is_night = period == "Nuit" || period == "Soir";
-    let is_rain = matches!(condition, "Pluie" | "Averses" | "Orageux");
+    let is_rain = matches!(condition, "Pluie" | "Averses");
+    let is_storm = condition == "Orageux";
     let is_sun = condition == "Ensoleillé";
     let is_cloudy = matches!(condition, "Nuageux" | "Brouillard");
-    
-    
+    let is_snow = condition == "Neige";
+
     match mood {
         "joy" => {
-            if is_sun    { vec![("comedie", 1.5), ("romance", 1.5), ("animation", 1.4)] }
-            else if is_rain { vec![("comedie", 1.2), ("romance", 1.2), ("animation", 1.3)] }
-            else         { vec![("comedie", 1.3), ("animation", 1.2), ("familial", 1.2)] }
+            if is_sun        { vec![("comedie", 1.5), ("romance", 1.4), ("animation", 1.3), ("familial", 1.1)] }
+            else if is_rain  { vec![("comedie", 1.3), ("romance", 1.3), ("animation", 1.2)] }
+            else if is_storm { vec![("comedie", 1.2), ("animation", 1.2), ("familial", 1.1)] }
+            else if is_snow  { vec![("animation", 1.4), ("familial", 1.4), ("comedie", 1.3)] }
+            else             { vec![("comedie", 1.3), ("animation", 1.2), ("familial", 1.2)] }
         }
         "sad" => {
-            if is_rain   { vec![("drame", 1.5), ("romance", 1.4)] }
-            else if is_sun { vec![("drame", 1.2), ("histoire", 1.2)] }
-            else         { vec![("drame", 1.3), ("romance", 1.2)] }
+            if is_rain       { vec![("drame", 1.5), ("romance", 1.4), ("histoire", 1.2)] }
+            else if is_storm { vec![("drame", 1.5), ("thriller", 1.2)] }
+            else if is_sun   { vec![("drame", 1.2), ("histoire", 1.3), ("romance", 1.1)] }
+            else if is_snow  { vec![("drame", 1.3), ("romance", 1.4), ("familial", 1.1)] }
+            else             { vec![("drame", 1.4), ("romance", 1.2), ("histoire", 1.1)] }
         }
         "angry" => {
-            if is_rain   { vec![("action", 1.5), ("thriller", 1.5), ("guerre", 1.4)] }
-            else if is_sun { vec![("action", 1.4), ("thriller", 1.3)] }
-            else         { vec![("action", 1.4), ("thriller", 1.3), ("guerre", 1.2)] }
+            if is_storm      { vec![("action", 1.5), ("thriller", 1.5), ("guerre", 1.4)] }
+            else if is_rain  { vec![("action", 1.4), ("thriller", 1.4), ("guerre", 1.3)] }
+            else if is_sun   { vec![("action", 1.4), ("aventure", 1.3), ("thriller", 1.2)] }
+            else if is_snow  { vec![("action", 1.3), ("thriller", 1.3), ("guerre", 1.2)] }
+            else             { vec![("action", 1.4), ("thriller", 1.3), ("guerre", 1.2)] }
         }
         "calm" => {
-            if is_cloudy { vec![("documentaire", 1.4), ("histoire", 1.3), ("animation", 1.2)] }
-            else if is_sun { vec![("animation", 1.4), ("familial", 1.3), ("documentaire", 1.2)] }
-            else         { vec![("documentaire", 1.3), ("animation", 1.3)] }
+            if is_sun        { vec![("documentaire", 1.4), ("animation", 1.3), ("familial", 1.3)] }
+            else if is_cloudy { vec![("documentaire", 1.5), ("histoire", 1.4), ("romance", 1.2)] }
+            else if is_rain  { vec![("documentaire", 1.4), ("histoire", 1.3), ("drame", 1.2)] }
+            else if is_snow  { vec![("documentaire", 1.4), ("animation", 1.4), ("familial", 1.3)] }
+            else             { vec![("documentaire", 1.3), ("histoire", 1.3), ("animation", 1.2)] }
         }
         "tired" => {
-            if is_rain   { vec![("familial", 1.5), ("animation", 1.5), ("comedie", 1.3)] }
-            else         { vec![("animation", 1.4), ("comedie", 1.3), ("familial", 1.4)] }
+            if is_rain       { vec![("familial", 1.5), ("animation", 1.5), ("fantastique", 1.2)] }
+            else if is_snow  { vec![("familial", 1.5), ("animation", 1.5), ("comedie", 1.3)] }
+            else if is_storm { vec![("animation", 1.4), ("familial", 1.4), ("comedie", 1.2)] }
+            else if is_sun   { vec![("animation", 1.3), ("comedie", 1.3), ("romance", 1.2)] }
+            else             { vec![("animation", 1.4), ("familial", 1.4), ("comedie", 1.2)] }
         }
         "fear" => {
-            if is_sun    { vec![("comedie", 1.5), ("animation", 1.4), ("familial", 1.3)] }
-            else if is_night { vec![("horreur", 1.0), ("thriller", 1.1)] }
-            else         { vec![("thriller", 1.2), ("comedie", 1.3)] }
+            if is_sun              { vec![("comedie", 1.5), ("familial", 1.4), ("romance", 1.3)] }
+            else if is_night && is_storm { vec![("horreur", 1.3), ("thriller", 1.4)] }
+            else if is_night       { vec![("thriller", 1.3), ("horreur", 1.2), ("comedie", 1.1)] }
+            else if is_rain        { vec![("thriller", 1.2), ("comedie", 1.3), ("familial", 1.2)] }
+            else if is_snow        { vec![("familial", 1.4), ("animation", 1.3), ("comedie", 1.2)] }
+            else                   { vec![("thriller", 1.2), ("comedie", 1.3), ("familial", 1.2)] }
         }
-        _ =>             { vec![("comedie", 1.0), ("action", 1.0), ("drame", 1.0)] }
+        "adventure" => {
+            if is_sun        { vec![("aventure", 1.5), ("fantastique", 1.5), ("science-fiction", 1.4), ("action", 1.3)] }
+            else if is_rain  { vec![("aventure", 1.4), ("fantastique", 1.3), ("science-fiction", 1.3)] }
+            else if is_storm { vec![("action", 1.5), ("aventure", 1.4), ("guerre", 1.3)] }
+            else if is_snow  { vec![("aventure", 1.5), ("fantastique", 1.4), ("action", 1.3)] }
+            else             { vec![("aventure", 1.4), ("fantastique", 1.4), ("science-fiction", 1.3)] }
+        }
+        "reflection" => {
+            if is_rain       { vec![("documentaire", 1.5), ("drame", 1.5), ("science-fiction", 1.3)] }
+            else if is_cloudy { vec![("documentaire", 1.5), ("histoire", 1.4), ("science-fiction", 1.3)] }
+            else if is_sun   { vec![("histoire", 1.3), ("documentaire", 1.3), ("drame", 1.2)] }
+            else if is_snow  { vec![("documentaire", 1.4), ("science-fiction", 1.4), ("histoire", 1.3)] }
+            else if is_storm { vec![("drame", 1.4), ("thriller", 1.3), ("science-fiction", 1.3)] }
+            else             { vec![("documentaire", 1.4), ("histoire", 1.3), ("drame", 1.3)] }
+        }
+        _ => { vec![("comedie", 1.0), ("action", 1.0), ("drame", 1.0)] }
     }
 }
 
 /// Calcule le score d'un film : note TMDb × multiplicateur de genre
+#[allow(dead_code)]
 fn compute_score(movie: &shared::Movie, genre: &str, weight: f32) -> f32 {
     if movie.genres.iter().any(|g| g.to_lowercase().contains(&genre.to_lowercase())) {
         movie.rating * weight
@@ -99,13 +130,20 @@ async fn compute_recommendations(
 ) -> Vec<RecommendedMovie> {
     let mut scores: HashMap<u32, f32> = HashMap::new();
 
+    // Score de base pénalisé pour tous les films
+    for films in movies_by_genre.values() {
+        for film in films {
+            scores.entry(film.id).or_insert(film.rating * 0.7);
+        }
+    }
+
+    // Appliquer les multiplicateurs selon humeur + météo
     for mood in moods {
         let weights = get_genre_weights(mood, &weather.condition, &weather.period);
         for (genre, multiplier) in &weights {
             if let Some(films) = movies_by_genre.get(*genre) {
                 for film in films {
-                    let score = compute_score(film, genre, *multiplier);
-                    // On garde le meilleur score si le film apparaît dans plusieurs genres
+                    let score = film.rating * multiplier;
                     let entry = scores.entry(film.id).or_insert(0.0);
                     if score > *entry {
                         *entry = score;
@@ -115,14 +153,30 @@ async fn compute_recommendations(
         }
     }
 
-    // Trier par score décroissant, garder le top 10
-    let mut result: Vec<RecommendedMovie> = scores
-        .into_iter()
-        .map(|(id, score)| RecommendedMovie { id, score })
-        .collect();
+    // Mapper chaque film à son genre principal
+    let mut all_movies_map: HashMap<u32, String> = HashMap::new();
+    for (genre, films) in movies_by_genre {
+        for film in films {
+            all_movies_map.entry(film.id).or_insert(genre.clone());
+        }
+    }
 
-    result.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-    result.truncate(10);
+    // Trier par score, diversifier (max 4 films par genre), garder top 20
+    let mut genre_count: HashMap<String, usize> = HashMap::new();
+    let mut sorted: Vec<(u32, f32)> = scores.into_iter().collect();
+    sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    let mut result: Vec<RecommendedMovie> = Vec::new();
+    for (id, score) in sorted {
+        if result.len() >= 20 { break; }
+        let genre = all_movies_map.get(&id).cloned().unwrap_or_default();
+        let count = genre_count.entry(genre).or_insert(0);
+        if *count < 4 {
+            *count += 1;
+            result.push(RecommendedMovie { id, score });
+        }
+    }
+
     result
 }
 
@@ -146,7 +200,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         movies: Arc::new(Mutex::new(HashMap::new())),
     };
 
-    // Spawn eventloop EN PREMIER
     let state_clone = state.clone();
     let client_clone = client.clone();
 
@@ -197,7 +250,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // Subscribes après le spawn
     client.subscribe(TOPIC_WEATHER, QoS::AtLeastOnce).await?;
     client.subscribe(TOPIC_MOOD, QoS::AtLeastOnce).await?;
     for topic in MOVIE_TOPICS {
@@ -205,8 +257,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("Abonné aux topics, en attente...");
-
-    // Garder le main en vie
     tokio::signal::ctrl_c().await?;
     Ok(())
 }
@@ -233,7 +283,7 @@ mod tests {
     fn test_joy_soleil() {
         let weights = get_genre_weights("joy", "Ensoleillé", "Matin");
         assert!(weights.iter().any(|(g, w)| *g == "comedie" && *w == 1.5));
-        assert!(weights.iter().any(|(g, w)| *g == "romance" && *w == 1.5));
+        assert!(weights.iter().any(|(g, w)| *g == "romance" && *w == 1.4));
     }
 
     #[test]
@@ -265,14 +315,33 @@ mod tests {
     #[test]
     fn test_fear_soleil() {
         let weights = get_genre_weights("fear", "Ensoleillé", "Matin");
-        // Le soleil avec peur → films rassurants
         assert!(weights.iter().any(|(g, w)| *g == "comedie" && *w == 1.5));
+    }
+
+    #[test]
+    fn test_adventure_soleil() {
+        let weights = get_genre_weights("adventure", "Ensoleillé", "Matin");
+        assert!(weights.iter().any(|(g, w)| *g == "aventure" && *w == 1.5));
+        assert!(weights.iter().any(|(g, w)| *g == "fantastique" && *w == 1.5));
+    }
+
+    #[test]
+    fn test_reflection_pluie() {
+        let weights = get_genre_weights("reflection", "Pluie", "Soir");
+        assert!(weights.iter().any(|(g, w)| *g == "documentaire" && *w == 1.5));
+        assert!(weights.iter().any(|(g, w)| *g == "drame" && *w == 1.5));
+    }
+
+    #[test]
+    fn test_neige_tired() {
+        let weights = get_genre_weights("tired", "Neige", "Soir");
+        assert!(weights.iter().any(|(g, _)| *g == "familial"));
+        assert!(weights.iter().any(|(g, _)| *g == "animation"));
     }
 
     #[test]
     fn test_humeur_inconnue() {
         let weights = get_genre_weights("unknown", "Pluie", "Soir");
-        // Doit retourner des valeurs par défaut sans paniquer
         assert!(!weights.is_empty());
         assert!(weights.iter().all(|(_, w)| *w == 1.0));
     }
@@ -283,8 +352,6 @@ mod tests {
     fn test_compute_score_genre_matching() {
         let movie = make_movie(1, "comedie", 7.5);
         let score = compute_score(&movie, "comedie", 1.5);
-        // "Comédie" contient "com" mais pas exactement "comedie" → vérifie le comportement
-        // Le genre est "Comédie", on cherche "comedie" → contains insensible à la casse
         assert_eq!(score, 7.5 * 1.5);
     }
 
@@ -292,7 +359,6 @@ mod tests {
     fn test_compute_score_genre_non_matching() {
         let movie = make_movie(2, "Action", 8.0);
         let score = compute_score(&movie, "comedie", 1.5);
-        // Genre ne correspond pas → score = rating sans multiplicateur
         assert_eq!(score, 8.0);
     }
 
