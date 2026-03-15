@@ -42,7 +42,7 @@ function App() {
         onRecommend={handleRecommend}
         onReset={handleReset}
       />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-scroll">
         <Home recommendations={recommendations} />
       </main>
     </div>

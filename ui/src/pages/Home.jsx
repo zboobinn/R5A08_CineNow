@@ -11,6 +11,15 @@ const Home = ({ recommendations }) => {
   const [moviesByGenre, setMoviesByGenre] = useState({});
   const [loading, setLoading] = useState(true);
 
+  const [activeTab, setActiveTab] = useState("recent"); // "recent" | "upcoming"
+
+// En mode recommandation, pas d'onglets
+const tabs = [
+  { id: "recent", label: "Sorties récentes" },
+  { id: "upcoming", label: "À venir" },
+];
+
+
   useEffect(() => {
     fetch("http://localhost:3001/movies")
       .then((res) => res.json())
@@ -46,8 +55,11 @@ const upcomingMovies = useMemo(() => {
 }, [allMovies]);
 
   const isRecommendationMode = recommendations !== null;
-  const displayedMovies = isRecommendationMode ? recommendations : recentMovies;
 
+  const displayedMovies = isRecommendationMode
+    ? recommendations
+    : activeTab === "recent" ? recentMovies : upcomingMovies;
+    
   const filteredMovies = useMemo(() => {
     if (!searchTerm) return displayedMovies;
     const searchNormalized = normalizeText(searchTerm);
@@ -63,48 +75,55 @@ const upcomingMovies = useMemo(() => {
   );
 
   return (
-    <div className="p-8 h-full flex flex-col max-w-7xl mx-auto">
-      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-bold text-stone-900 tracking-tight mb-2">
-            {isRecommendationMode ? "Pour toi ce soir" : "Sorties récentes"}
-          </h1>
-          
-          <p className="text-stone-500 text-lg">
-            {isRecommendationMode
-              ? `${recommendations.length} films sélectionnés selon ton humeur et la météo.`
-              : "Les films les plus récents du catalogue."}
-          </p>
-          
-        </div>
+  <div className="p-8 h-full flex flex-col max-w-7xl mx-auto">
+    <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div>
+        {isRecommendationMode ? (
+          <>
+            <h1 className="text-4xl font-bold text-stone-900 tracking-tight mb-2">Pour toi ce soir</h1>
+            <p className="text-stone-500 text-lg">{recommendations.length} films sélectionnés selon ton humeur et la météo.</p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-4xl font-bold text-stone-900 tracking-tight mb-2">
+              {activeTab === "recent" ? "Sorties récentes" : "À venir"}
+            </h1>
+            <div className="flex gap-2 mt-3">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all
+                    ${activeTab === tab.id
+                      ? "bg-orange-500 text-white shadow-sm"
+                      : "bg-stone-100 text-stone-500 hover:bg-stone-200"
+                    }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
-        <div className="relative w-full md:w-96 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FontAwesomeIcon icon={faMagnifyingGlass} className="text-stone-400 group-focus-within:text-orange-500 transition-colors" />
-          </div>
-          <input
-            type="text"
-            placeholder="Rechercher un film..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-3.5 bg-white border border-stone-200 rounded-2xl text-stone-700 shadow-sm focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-400/10 transition-all placeholder:text-stone-400"
-          />
+      <div className="relative w-full md:w-96 group">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <FontAwesomeIcon icon={faMagnifyingGlass} className="text-stone-400 group-focus-within:text-orange-500 transition-colors" />
         </div>
-      </header>
+        <input
+          type="text"
+          placeholder="Rechercher un film..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-11 pr-4 py-3.5 bg-white border border-stone-200 rounded-2xl text-stone-700 shadow-sm focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-400/10 transition-all placeholder:text-stone-400"
+        />
+      </div>
+    </header>
 
-      <MovieGrid movies={filteredMovies} />
-
-      {!isRecommendationMode && !searchTerm && upcomingMovies.length > 0 && (
-        <div className="mt-10">
-          <h2 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">
-            Prochaines sorties
-          </h2>
-          <p className="text-stone-500 mb-6">{upcomingMovies.length} films à venir.</p>
-          <MovieGrid movies={upcomingMovies} />
-        </div>
-      )}
-    </div>
-  );
+    <MovieGrid movies={filteredMovies} />
+  </div>
+);
 };
 
 export default Home;
