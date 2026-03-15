@@ -4,6 +4,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use axum::extract::Path;
 use dotenvy::dotenv;
 use rumqttc::{AsyncClient, MqttOptions, Packet, QoS};
 use serde::{Deserialize, Serialize};
@@ -43,6 +44,20 @@ struct AppState {
     movies: Arc<Mutex<HashMap<String, Vec<Movie>>>>,
     recommendations: Arc<Mutex<Vec<Movie>>>,
     mqtt_client: AsyncClient,
+}
+
+#[derive(Debug, Serialize)]
+struct MovieDetails {
+    id: u32,
+    title: String,
+    genres: Vec<String>,
+    rating: f32,
+    poster_path: Option<String>,
+    overview: String,
+    release_date: Option<String>,
+    duration: Option<u32>,        // en minutes
+    director: Option<String>,
+    actors: Vec<String>,          // 5 premiers
 }
 
 const MOVIE_TOPICS: &[&str] = &[
@@ -147,6 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/recommendations", get(get_recommendations))
         .route("/location", post(post_location))
         .route("/mood", post(post_mood))
+        .route("/movie/:id", get(get_movie_details))
         .with_state(app_state)
         .layer(cors);
 
@@ -163,6 +179,83 @@ async fn get_weather(State(state): State<AppState>) -> Json<WeatherData> {
 
 async fn get_movies(State(state): State<AppState>) -> Json<HashMap<String, Vec<Movie>>> {
     Json(state.movies.lock().await.clone())
+}
+
+async fn get_movie_details(
+    Path(id): Path<u32>,
+) -> Json<serde_json::Value> {
+    let tmdb_key = std::env::var("TMDB_API_KEY").unwrap_or_default();
+
+    // Fetch détails + crédits en parallèle
+    let details_url = format!(
+        "https://api.themoviedb.org/3/movie/{}?api_key={}&language=fr-FR",
+        id, tmdb_key
+    );
+    let credits_url = format!(
+        "https://api.themoviedb.org/3/movie/{}/credits?api_key={}&language=fr-FR",
+        id, tmdb_key
+    );
+
+    let client = reqwest::Client::new();
+    let (details_res, credits_res) = tokio::join!(
+        client.get(&details_url).send(),
+        client.get(&credits_url).send(),
+    );
+
+    let details: serde_json::Value = match details_res {
+        Ok(r) => r.json().await.unwrap_or_default(),
+        Err(_) => return Json(serde_json::json!({ "error": "Erreur TMDb" })),
+    };
+
+    let credits: serde_json::Value = match credits_res {
+        Ok(r) => r.json().await.unwrap_or_default(),
+        Err(_) => serde_json::json!({}),
+    };
+
+    // Extraire réalisateur
+    let director = credits["crew"]
+        .as_array()
+        .and_then(|crew| crew.iter().find(|p| p["job"] == "Director"))
+        .and_then(|d| d["name"].as_str())
+        .map(|s| s.to_string());
+
+    // Extraire acteurs (5 premiers)
+    let actors: Vec<String> = credits["cast"]
+        .as_array()
+        .map(|cast| {
+            cast.iter()
+                .take(5)
+                .filter_map(|a| a["name"].as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Extraire genres
+    let genres: Vec<String> = details["genres"]
+        .as_array()
+        .map(|g| {
+            g.iter()
+                .filter_map(|genre| genre["name"].as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let movie = MovieDetails {
+        id,
+        title: details["title"].as_str().unwrap_or("").to_string(),
+        genres,
+        rating: details["vote_average"].as_f64().unwrap_or(0.0) as f32,
+        poster_path: details["poster_path"]
+            .as_str()
+            .map(|p| format!("https://image.tmdb.org/t/p/w500{}", p)),
+        overview: details["overview"].as_str().unwrap_or("").to_string(),
+        release_date: details["release_date"].as_str().map(|s| s.to_string()),
+        duration: details["runtime"].as_u64().map(|d| d as u32),
+        director,
+        actors,
+    };
+
+    Json(serde_json::to_value(movie).unwrap_or_default())
 }
 
 async fn get_recommendations(State(state): State<AppState>) -> Json<Vec<Movie>> {
