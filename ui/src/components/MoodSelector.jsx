@@ -1,10 +1,12 @@
 const MOODS = [
-  { id: "joy",     label: "Joyeux",  icon: '✨',    color: "text-yellow-500" },
-  { id: "sad",     label: "Triste",  icon: '😢',    color: "text-blue-400" },
-  { id: "angry",   label: "Énervé",  icon: '🔥',    color: "text-red-500" },
-  { id: "calm",    label: "Calme",   icon: '🧘',    color: "text-green-500" },
-  { id: "tired",   label: "Fatigué", icon: '😴',    color: "text-stone-400" },
-  { id: "fear",    label: "Peur",    icon: '😨',    color: "text-purple-500" },
+  { id: "joy",        label: "Joyeux",     icon: '✨' },
+  { id: "sad",        label: "Triste",     icon: '😢' },
+  { id: "angry",      label: "Énervé",     icon: '🔥' },
+  { id: "calm",       label: "Calme",      icon: '🧘' },
+  { id: "tired",      label: "Fatigué",    icon: '😴' },
+  { id: "fear",       label: "Peur",       icon: '😨' },
+  { id: "adventure",  label: "Aventure",   icon: '🗺️' },
+  { id: "reflection", label: "Réflexion",  icon: '🔮' },
 ];
 
 

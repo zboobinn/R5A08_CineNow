@@ -29,15 +29,21 @@ const Home = ({ recommendations }) => {
       });
   }, [moviesByGenre]);
 
-  const recentMovies = useMemo(() => {
-    return [...allMovies]
-      .sort((a, b) => {
-        if (!a.release_date) return 1;
-        if (!b.release_date) return -1;
-        return b.release_date.localeCompare(a.release_date);
-      })
-      .slice(0, 20);
-  }, [allMovies]);
+const today = new Date().toISOString().slice(0, 10); // "2025-03-15"
+
+const recentMovies = useMemo(() => {
+  return [...allMovies]
+    .filter((m) => m.release_date && m.release_date <= today)
+    .sort((a, b) => b.release_date.localeCompare(a.release_date))
+    .slice(0, 20);
+}, [allMovies]);
+
+const upcomingMovies = useMemo(() => {
+  return [...allMovies]
+    .filter((m) => m.release_date && m.release_date > today)
+    .sort((a, b) => a.release_date.localeCompare(b.release_date))
+    .slice(0, 10);
+}, [allMovies]);
 
   const isRecommendationMode = recommendations !== null;
   const displayedMovies = isRecommendationMode ? recommendations : recentMovies;
@@ -87,6 +93,16 @@ const Home = ({ recommendations }) => {
       </header>
 
       <MovieGrid movies={filteredMovies} />
+
+      {!isRecommendationMode && !searchTerm && upcomingMovies.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-2xl font-bold text-stone-900 tracking-tight mb-2">
+            Prochaines sorties
+          </h2>
+          <p className="text-stone-500 mb-6">{upcomingMovies.length} films à venir.</p>
+          <MovieGrid movies={upcomingMovies} />
+        </div>
+      )}
     </div>
   );
 };
