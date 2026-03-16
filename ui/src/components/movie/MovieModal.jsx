@@ -29,7 +29,7 @@ function MovieModal({ movie, onClose }) {
       >
         <div className="flex items-center gap-6 p-6">
 
-          {/* Poster — taille card */}
+          {/* Poster */}
           <div className="w-48 shrink-0">
             <div className="aspect-2/3 rounded-2xl overflow-hidden bg-stone-200 shadow-md">
               {movie.poster_path ? (
@@ -42,7 +42,7 @@ function MovieModal({ movie, onClose }) {
             </div>
           </div>
 
-          {/* Détails droite */}
+          {/* Détails */}
           <div className="flex-1 overflow-y-auto relative pr-2">
 
             {/* Bouton fermer */}

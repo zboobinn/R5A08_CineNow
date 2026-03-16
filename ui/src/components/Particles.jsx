@@ -1,10 +1,7 @@
 import React from 'react';
 
 export function Particles({ type }) {
-  // 1. SOLEIL / ÉTOILES (utilise day pour le soleil, Stars pour la nuit)
-
   // 1. SOLAIL (Jour) et ÉTOILES (Nuit)
-  // Si le parent envoie 'stars'
   if (type === "stars") return (
     <div className="absolute inset-0 z-0 overflow-hidden">
       {[...Array(8)].map((_, i) => (
