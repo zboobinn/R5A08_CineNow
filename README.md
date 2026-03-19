@@ -2,8 +2,8 @@
 
 **Application de recommandation de films basée sur l'humeur et la météo**
 
-Projet de Programmation Répartie - Rust  
-Info3-TP1K 
+Projet de Programmation Répartie - Rust | R5.A.08  
+Info3-TP1K
 
 ## 👥 Équipe
 
@@ -12,176 +12,229 @@ Info3-TP1K
 - Abel CHAREYRON
 - Antoine LANDON
 
-## 📖 Description
+---
 
-Ciné-Now est une application distribuée qui recommande des films personnalisés en fonction de :
-- L'humeur de l'utilisateur (joie, tristesse, colère, etc.)
-- Les conditions météorologiques actuelles
+## 📖 Spécifications
+
+### Données utilisées en entrée
+
+**Depuis l'interface (Tauri) :**
+- Humeur sélectionnée (joie, tristesse, colère, peur, fatigue, calme, aventure, réflexion)
+
+**Depuis l'API météo (Open-Meteo) :**
+- Température actuelle (°C)
+- Condition météorologique (pluie, soleil, nuageux, neige, orage...)
+- Heure de la journée (matin, après-midi, soir, nuit)
+
+**Depuis l'API films (TMDb) :**
+- Titre, synopsis, genres, note, affiche, acteurs, réalisateur, durée, date de sortie
+
+### Traitements réalisés
+
+- Algorithme de scoring : chaque film reçoit un score basé sur `rating × multiplicateur(humeur, météo)`
+- Diversification : maximum 4 films par genre dans le top 20
+- Géocodage inversé des coordonnées GPS en nom de ville
+
+### Données enregistrées
+
+- Catalogue de films par genre (en mémoire, via MQTT retained)
+- Météo actuelle (en mémoire, mise à jour toutes les 15 min)
+
+### Données présentées à l'utilisateur
+
+- Conditions météo en temps réel (icône animée, température, ville, géolocalisation)
+- Catalogue de films avec sorties récentes et à venir
+- Recommandations personnalisées selon l'humeur et la météo
+- Détails complets d'un film (synopsis, acteurs, réalisateur, durée)
+
+---
 
 ## 🏗️ Architecture
 
-- **5 services Rust** communiquant via **MQTT**
-- **Interface utilisateur** : Tauri (à venir)
-- **APIs externes** :
-  - Open-Meteo (météo)
-  - TMDb (films)
+**4 services Rust** communiquant via **MQTT (Shiftr Desktop)**  
+**Interface hybride** : Tauri + React + Tailwind CSS
+
+```
+weather-service   →  MQTT weather/current
+movie-service     →  MQTT movies/{genre}   (14 genres, 30 films/genre)
+                                ↓
+                    recommendation-service
+                    (reçoit mood/selected)
+                                ↓
+                    MQTT recommendations/result
+                                ↓
+web-server  →  HTTP REST  →  Interface Tauri (React)
+```
+
+### Topics MQTT
+
+| Topic | Publié par | Souscrit par | Description |
+|---|---|---|---|
+| `weather/current` | weather-service | web-server, recommendation-service | Météo actuelle |
+| `weather/location` | web-server | weather-service | Coordonnées GPS |
+| `movies/{genre}` | movie-service | web-server, recommendation-service | Catalogue par genre |
+| `mood/selected` | web-server | recommendation-service | Humeurs sélectionnées |
+| `recommendations/result` | recommendation-service | web-server | IDs + scores recommandés |
+
+
+### Routes HTTP (web-server, port 3001)
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/weather` | Météo actuelle |
+| GET | `/movies` | Catalogue complet par genre |
+| GET | `/recommendations` | Films recommandés |
+| GET | `/movie/:id` | Détails complets d'un film (fetch TMDb à la demande) |
+| POST | `/mood` | Envoyer les humeurs sélectionnées |
+| POST | `/location` | Envoyer les coordonnées GPS |
+
+
+---
 
 ## 🚀 Installation
 
 ### Prérequis
 
-Avant de commencer, installez les logiciels suivants :
-
-#### 1. **Rust** (version 1.75 ou supérieure)
+#### 1. Rust (version 1.75 ou supérieure)
 - **Windows** : https://rustup.rs/
-  - Télécharger et exécuter `rustup-init.exe`
-  - Redémarrer PowerShell après l'installation
-- **Linux/Mac** : 
+- **Linux/Mac** :
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
   ```
-- Vérifier l'installation :
+  Sur les machines IUT, utiliser une version locale :
   ```bash
-  rustc --version
-  cargo --version
+  export RUSTUP_HOME=~/.rustup
+  rustup install stable
   ```
 
-#### 2. **Git**
-- **Windows** : https://git-scm.com/download/win
-- **Linux (Debian/Ubuntu)** :
-  ```bash
-  sudo apt install git
-  ```
-- **Mac** :
-  ```bash
-  brew install git
-  ```
-- Vérifier l'installation :
-  ```bash
-  git --version
-  ```
+#### 2. Node.js (v18 ou supérieure)
+- https://nodejs.org/
 
-#### 3. **Shiftr Desktop** (broker MQTT avec interface visuelle)
-- **Windows** : https://www.shiftr.io/desktop#downloads
-  - Télécharger et installer `shiftr-desktop-setup.exe`
-  - Lancer l'application
-  - Interface web : http://localhost:1884
-- **Linux** :
-  ```bash
-  wget https://www.shiftr.io/desktop/download/latest/linux/deb
-  sudo dpkg -i shiftr-desktop_*.deb
-  shiftr-desktop
-  ```
-- Vérifier l'installation :
-  - Ouvrir http://localhost:1884
-  - L'interface Shiftr doit s'afficher
+#### 3. Shiftr Desktop (broker MQTT)
+- https://www.shiftr.io/desktop#downloads
+- Interface de monitoring : http://localhost:3000
+- Port MQTT : 1883
 
-#### 4. **Clé API TMDb** (gratuite)
-- Créer un compte : https://www.themoviedb.org/signup
-- Demander une clé API :
-  1. Se connecter sur TMDb
-  2. Aller dans **Settings** → **API**
-  3. Cliquer sur **"Request an API Key"**
-  4. Choisir **"Developer"**
-  5. Remplir le formulaire (Type: Education/Student)
-  6. Copier votre **API Key (v3 auth)**
+#### 4. Dépendances système Linux (pour Tauri)
+```bash
+sudo apt install -y \
+  libwebkit2gtk-4.1-dev \
+  libsoup-3.0-dev \
+  libjavascriptcoregtk-4.1-dev \
+  libgtk-3-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev
+```
+> ⚠️ Sur Windows ces dépendances ne sont pas nécessaires (WebView2 intégré).
 
-#### 5. **VS Code** (recommandé)
-- Télécharger : https://code.visualstudio.com/
-- Extensions recommandées :
-  - `rust-analyzer` (Rust Language Server)
-  - `Even Better TOML`
-  - `GitLens`
-  - `Error Lens`
+#### 5. Clé API TMDb (gratuite)
+1. Créer un compte : https://www.themoviedb.org/signup
+2. Aller dans **Settings → API → Request an API Key**
+3. Choisir **Developer**, remplir le formulaire (Education/Student)
+4. Copier la **API Key (v3 auth)**
 
 ### Configuration
 
-#### Windows
-
-1. Cloner le dépôt :
-```powershell
-git clone https://gitlab.iut-valence.fr/canalsal/r5.a_08-cinenow.git
-cd r5.a_08-cinenow
-```
-
-2. Configurer l'environnement :
-```powershell
-Copy-Item .env.example .env
-code .env  # Ajouter votre clé TMDb
-```
-
-3. Compiler le projet :
-```powershell
-cargo build
-```
-
-#### Linux
-
 1. Cloner le dépôt :
 ```bash
 git clone https://gitlab.iut-valence.fr/canalsal/r5.a_08-cinenow.git
 cd r5.a_08-cinenow
 ```
 
-2. Configurer l'environnement :
+2. Copier et configurer le fichier d'environnement :
 ```bash
+# Linux/Mac
 cp .env.example .env
-nano .env  # Ajouter votre clé TMDb
+
+# Windows
+Copy-Item .env.example .env
 ```
 
-3. Compiler le projet :
+3. Remplir `.env` avec votre clé TMDb :
+```env
+MQTT_BROKER_HOST=localhost
+MQTT_BROKER_PORT=1883
+TMDB_API_KEY=votre_clé_ici
+DEFAULT_CITY=Valence
+DEFAULT_LATITUDE=44.9155
+DEFAULT_LONGITUDE=4.9147
+```
+
+4. Compiler le projet :
 ```bash
 cargo build
+cd ui && npm install
 ```
 
-### Lancement
+---
 
-#### Windows
+## ▶️ Lancement
 
-#### Mode développement
+### Mode développement
 
 1. Lancer **Shiftr Desktop**
 2. Exécuter le script :
+
+**Windows :**
 ```powershell
 .\scripts\run-dev.ps1
 ```
 
-#### Mode release
+**Linux :**
+```bash
+chmod +x scripts/run-dev.sh
+./scripts/run-dev.sh
+```
+
+Ou manuellement dans des terminaux séparés (dans cet ordre) :
+```bash
+cargo run -p weather-service
+cargo run -p movie-service
+cargo run -p recommendation-service
+cargo run -p web-server
+cd ui && npm run tauri dev
+```
+
+### Mode release
 
 1. Lancer **Shiftr Desktop**
-2. Exécuter le script (compile + lance les services + ouvre le dossier) :
+2. Exécuter le script (compile tout puis lance les services) :
+
+**Windows :**
 ```powershell
 .\scripts\run-release.ps1
 ```
-3. Double-cliquer sur l'exe **Ciné-Now** dans le dossier qui s'ouvre
 
+**Linux :**
+```bash
+./scripts/run-release.sh
+```
 
-#### Linux
+3. Ouvrir l'exécutable Ciné-Now dans le dossier `target/release/`
 
-#### Mode développement (à venir)
-#### Mode release (à venir)
+---
+
+## 🧪 Tests
+
+```bash
+# Tous les tests (unitaires + intégration)
+cargo test
+
+# Par service
+cargo test -p weather-service
+cargo test -p recommendation-service
+
+# Tests d'intégration uniquement
+cargo test -p weather-service --test integration_test
+cargo test -p recommendation-service --test integration_test
+
+# Tests unitaires uniquement
+cargo test -p weather-service --lib
+cargo test -p recommendation-service --lib
+```
+
+---
 
 ## 📚 Documentation
 
 - [Cahier des charges](docs/cahier_des_charges.md)
-
-
-## 🧪 Tests
-
-#### Windows
-```powershell
-# Tests unitaires
-cargo test
-
-# Tests d'intégration (à venir)
-cargo test --test integration
-```
-
-#### Linux
-```bash
-# Tests unitaires
-cargo test
-
-# Tests d'intégration (à venir)
-cargo test --test integration
-```
