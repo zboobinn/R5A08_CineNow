@@ -54,17 +54,15 @@ Info3-TP1K
 **4 services Rust** communiquant via **MQTT (Shiftr Desktop)**  
 **Interface hybride** : Tauri + React + Tailwind CSS
 
-```
-weather-service   →  MQTT weather/current
-movie-service     →  MQTT movies/{genre}   (14 genres, 30 films/genre)
-                                ↓
-                    recommendation-service
-                    (reçoit mood/selected)
-                                ↓
-                    MQTT recommendations/result
-                                ↓
-web-server  →  HTTP REST  →  Interface Tauri (React)
-```
+![Architecture Ciné-Now](docs/architecture.png)
+
+### Choix technologiques
+
+**IPC : MQTT**  
+Choisi pour sa légèreté, son modèle publish/subscribe adapté aux événements, et la simplicité de déploiement via Shiftr Desktop. L'ordre de démarrage des services n'est pas critique grâce aux messages retained.
+
+**Interface : Tauri**  
+Choisi pour son intégration native avec Rust, sa légèreté comparée à Electron, et la possibilité de créer une interface web moderne (React) tout en bénéficiant d'un exécutable natif.
 
 ### Topics MQTT
 
@@ -76,7 +74,6 @@ web-server  →  HTTP REST  →  Interface Tauri (React)
 | `mood/selected` | web-server | recommendation-service | Humeurs sélectionnées |
 | `recommendations/result` | recommendation-service | web-server | IDs + scores recommandés |
 
-
 ### Routes HTTP (web-server, port 3001)
 
 | Méthode | Route | Description |
@@ -87,7 +84,6 @@ web-server  →  HTTP REST  →  Interface Tauri (React)
 | GET | `/movie/:id` | Détails complets d'un film (fetch TMDb à la demande) |
 | POST | `/mood` | Envoyer les humeurs sélectionnées |
 | POST | `/location` | Envoyer les coordonnées GPS |
-
 
 ---
 
@@ -117,13 +113,17 @@ web-server  →  HTTP REST  →  Interface Tauri (React)
 
 #### 4. Dépendances système Linux (pour Tauri)
 ```bash
-sudo apt install -y \
-  libwebkit2gtk-4.1-dev \
-  libsoup-3.0-dev \
-  libjavascriptcoregtk-4.1-dev \
+sudo apt update
+sudo apt install \
+  build-essential \
+  pkg-config \
+  libssl-dev \
+  libglib2.0-dev \
+  libgdk-pixbuf-2.0-dev \
+  libpango1.0-dev \
+  libatk1.0-dev \
   libgtk-3-dev \
-  libayatana-appindicator3-dev \
-  librsvg2-dev
+  libwebkit2gtk-4.1-dev
 ```
 > ⚠️ Sur Windows ces dépendances ne sont pas nécessaires (WebView2 intégré).
 
@@ -150,15 +150,7 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-3. Remplir `.env` avec votre clé TMDb :
-```env
-MQTT_BROKER_HOST=localhost
-MQTT_BROKER_PORT=1883
-TMDB_API_KEY=votre_clé_ici
-DEFAULT_CITY=Valence
-DEFAULT_LATITUDE=44.9155
-DEFAULT_LONGITUDE=4.9147
-```
+3. Remplir `.env` avec votre clé TMDb
 
 4. Compiler le projet :
 ```bash
@@ -175,16 +167,21 @@ cd ui && npm install
 1. Lancer **Shiftr Desktop**
 2. Exécuter le script :
 
-**Windows :**
+**Windows** — lance les services ET l'interface Tauri automatiquement :
 ```powershell
 .\scripts\run-dev.ps1
 ```
 
-**Linux :**
+**Linux** — lance uniquement les services Rust :
 ```bash
 chmod +x scripts/run-dev.sh
 ./scripts/run-dev.sh
 ```
+
+> ⚠️ Sur Linux, l'interface Tauri doit être lancée manuellement après avoir installé les dépendances système (voir prérequis) :
+> ```bash
+> cd ui && npm run tauri dev
+> ```
 
 Ou manuellement dans des terminaux séparés (dans cet ordre) :
 ```bash
@@ -192,25 +189,31 @@ cargo run -p weather-service
 cargo run -p movie-service
 cargo run -p recommendation-service
 cargo run -p web-server
-cd ui && npm run tauri dev
+cd ui && npm run tauri dev 
 ```
 
 ### Mode release
 
 1. Lancer **Shiftr Desktop**
-2. Exécuter le script (compile tout puis lance les services) :
+2. Exécuter le script :
 
-**Windows :**
+**Windows** — compile tout, lance les services et ouvre le dossier pour lancer l'exe Tauri :
 ```powershell
 .\scripts\run-release.ps1
 ```
 
-**Linux :**
+**Linux** — compile et lance uniquement les services Rust :
 ```bash
 ./scripts/run-release.sh
 ```
 
-3. Ouvrir l'exécutable Ciné-Now dans le dossier `target/release/`
+> ⚠️ Sur Linux, lancer ensuite l'interface manuellement :
+> ```bash
+> cd ui && npm run tauri build  # si pas encore compilé
+> ./ui/src-tauri/target/release/CineNow
+> ```
+
+3. **Windows** : Double-cliquer sur l'exe **Ciné-Now** dans le dossier `target/release/` qui s'ouvre automatiquement.
 
 ---
 
@@ -238,3 +241,4 @@ cargo test -p recommendation-service --lib
 ## 📚 Documentation
 
 - [Cahier des charges](docs/cahier_des_charges.md)
+- [Architecture détaillée](docs/architecture.md)
