@@ -112,6 +112,9 @@ Choisi pour son intégration native avec Rust, sa légèreté comparée à Elect
 - Port MQTT : 1883
 
 #### 4. Dépendances système Linux (pour Tauri)
+
+Les dépendances suivantes sont le minimum requis, d'autres peuvent être nécessaires selon la distribution :
+
 ```bash
 sudo apt update
 sudo apt install \
