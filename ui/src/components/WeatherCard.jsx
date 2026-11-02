@@ -93,7 +93,7 @@ function WeatherCard() {
 
       <div className={`relative z-10 flex items-center gap-2 border-t border-white/20 px-4 py-1.5 text-sm ${theme.sub}`}>
         <FontAwesomeIcon icon={faLocationDot} />
-        <span className="min-w-0 truncate">{locationError ?? weather.city}</span>
+        <span className="min-w-0 truncate" title={weather.city}>{locationError ?? weather.city}</span>
         <a
           href="https://open-meteo.com/"
           target="_blank"

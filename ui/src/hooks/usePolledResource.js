@@ -21,6 +21,7 @@ export function usePolledResource(fetcher, isEmpty) {
         setState({ data, status: empty ? "warming" : "ready", error: null });
       } catch (err) {
         if (controller.signal.aborted) return;
+        delay = WARMUP_MS;
         // Une panne pendant un rafraîchissement n'efface pas ce qui est déjà affiché
         setState((prev) =>
           prev.status === "ready" ? prev : { data: null, status: "error", error: err.message }
