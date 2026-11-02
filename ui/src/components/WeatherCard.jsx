@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLocationDot, faCrosshairs } from "@fortawesome/free-solid-svg-icons";
+import { faLocationDot, faCrosshairs, faSpinner } from "@fortawesome/free-solid-svg-icons";
+import { getWeather, sendLocation } from "../api";
+import { usePolledResource } from "../hooks/usePolledResource";
 import { weatherThemes } from "../themes/weatherThemes";
 import { Particles } from "./Particles";
 
+const isWeatherEmpty = (weather) => weather.condition === "";
 
 function getParticles(condition, isDay) {
   if (condition === "Pluie" || condition === "Averses") return "rain";
@@ -14,61 +17,53 @@ function getParticles(condition, isDay) {
 }
 
 function WeatherCard() {
-  const [weather, setWeather] = useState(null);
-
-  const fetchWeather = () => {
-    fetch("http://localhost:3001/weather")
-      .then((res) => res.json())
-      .then((data) => setWeather(data))
-      .catch((err) => console.error("Erreur météo:", err));
-  };
-
-  useEffect(() => {
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 30000); // Mise à jour toutes les 30s
-    return () => clearInterval(interval);
-  }, []);
+  const { data: weather, status, retry, refresh } = usePolledResource(getWeather, isWeatherEmpty);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState(null);
 
   const requestLocation = () => {
-    if ("geolocation" in navigator) {
-      console.log("⏳ Recherche de la position en cours...");
-      
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          
-          console.log(`📍 Coordonnées trouvées : Lat ${lat}, Lon ${lon}`);
-
-          fetch("http://localhost:3001/location", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lat, lon }),
-          })
-          .then((res) => {
-            if (res.ok) {
-              console.log("✅ Position envoyée ! Actualisation dans 1.5s...");
-              
-              setTimeout(() => {
-                fetchWeather();
-              }, 1500);
-            }
-          })
-          .catch((err) => console.error("❌ Erreur envoi position :", err));
-        },
-        (error) => {
-          console.error("❌ Erreur géolocalisation :", error.message);
-          alert("Impossible de récupérer votre position.");
-        }
-      );
-    } else {
-      alert("Géolocalisation non supportée.");
+    if (!("geolocation" in navigator)) {
+      setLocationError("Géolocalisation non supportée.");
+      return;
     }
+
+    setIsLocating(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          await sendLocation(position.coords.latitude, position.coords.longitude);
+          // Le temps que le weather-service interroge Open-Meteo et publie sur MQTT
+          setTimeout(() => {
+            refresh();
+            setIsLocating(false);
+          }, 1500);
+        } catch {
+          setLocationError("Envoi de la position impossible.");
+          setIsLocating(false);
+        }
+      },
+      () => {
+        setLocationError("Position indisponible.");
+        setIsLocating(false);
+      },
+      { timeout: 10000 }
+    );
   };
 
-  if (!weather || weather.condition === "") return (
-    <div className="rounded-2xl p-5 bg-stone-100 text-stone-400 text-sm text-center">
-      Chargement météo...
+  if (status === "error") return (
+    <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl bg-stone-100 p-4 text-sm text-stone-700">
+      <span>Météo indisponible</span>
+      <button type="button" onClick={retry} className="font-semibold text-orange-800 underline underline-offset-2 hover:text-orange-950">
+        Réessayer
+      </button>
+    </div>
+  );
+
+  if (status !== "ready") return (
+    <div role="status" className="h-28 animate-pulse rounded-2xl bg-stone-200 lg:h-60">
+      <span className="sr-only">Chargement de la météo</span>
     </div>
   );
 
@@ -77,41 +72,48 @@ function WeatherCard() {
     ?? weatherThemes["Nuageux"][isDay ? "day" : "night"];
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl bg-linear-to-b ${theme.bg} flex flex-col items-center text-center shadow-md`}>
-      
-      <Particles type={getParticles(weather.condition, isDay)} />
-
-      <div className="pt-6 pb-2 z-10">
-        <FontAwesomeIcon icon={theme.icon} className={`text-6xl ${theme.iconClass}`} />
+    <section
+      aria-label="Météo actuelle"
+      className={`relative overflow-hidden rounded-2xl bg-linear-to-b ${theme.bg} shadow-md`}
+    >
+      <div aria-hidden="true">
+        <Particles type={getParticles(weather.condition, isDay)} />
       </div>
 
-      <div className={`text-5xl font-bold z-10 ${theme.text}`}>
-        {Math.round(weather.temp)}°C
+      <div className="relative z-10 flex items-center gap-4 px-4 pt-4 pb-3 lg:flex-col lg:gap-1 lg:px-5 lg:pt-6 lg:text-center">
+        <FontAwesomeIcon icon={theme.icon} className={`text-4xl lg:mb-1 lg:text-5xl ${theme.iconClass}`} />
+        <div className={`font-display text-4xl leading-none font-extrabold lg:text-5xl ${theme.text}`}>
+          {Math.round(weather.temp)}°C
+        </div>
+        <div className="min-w-0">
+          <div className={`font-semibold ${theme.text}`}>{weather.condition}</div>
+          <div className={`text-sm ${theme.sub}`}>{weather.period}</div>
+        </div>
       </div>
 
-      <div className={`text-lg font-semibold mt-1 z-10 ${theme.text}`}>
-        {weather.condition}
-      </div>
-
-      <div className={`text-sm mt-1 z-10 ${theme.sub}`}>
-        {weather.period}
-      </div>
-
-      <div className="w-full border-t border-white/10 mt-4" />
-
-      <div className={`flex items-center justify-center gap-2 py-3 px-4 z-10 ${theme.sub} text-sm w-full`}>
+      <div className={`relative z-10 flex items-center gap-2 border-t border-white/20 px-4 py-1.5 text-sm ${theme.sub}`}>
         <FontAwesomeIcon icon={faLocationDot} />
-        <span>{weather.city}</span>
-        <button
-          onClick={requestLocation}
-          className={`ml-auto hover:opacity-100 opacity-60 transition-opacity cursor-pointer ${theme.sub}`}
-          title="Utiliser ma position"
+        <span className="min-w-0 truncate">{locationError ?? weather.city}</span>
+        <a
+          href="https://open-meteo.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="ml-auto shrink-0 text-xs underline underline-offset-2"
         >
-          <FontAwesomeIcon icon={faCrosshairs} />
+          Open-Meteo
+        </a>
+        <button
+          type="button"
+          onClick={requestLocation}
+          disabled={isLocating}
+          aria-label="Utiliser ma position"
+          title="Utiliser ma position"
+          className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/15"
+        >
+          <FontAwesomeIcon icon={isLocating ? faSpinner : faCrosshairs} spin={isLocating} />
         </button>
       </div>
-
-    </div>
+    </section>
   );
 }
 

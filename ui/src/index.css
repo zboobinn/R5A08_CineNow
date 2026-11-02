@@ -1,6 +1,6 @@
 /* Scrollbar personnalisée */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 ::-webkit-scrollbar-thumb {

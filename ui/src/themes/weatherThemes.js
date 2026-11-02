@@ -6,11 +6,11 @@ import {
 export const weatherThemes = {
   "Ensoleillé": {
     day: {
-      bg: "from-blue-400 to-sky-300",
+      bg: "from-blue-600 to-sky-700",
       icon: faSun,
       iconClass: "text-yellow-300 sun-spin",
       text: "text-white",
-      sub: "text-white/70",
+      sub: "text-white",
       particles: "sun",
     },
     night: {
@@ -18,17 +18,17 @@ export const weatherThemes = {
       icon: faMoon,
       iconClass: "text-yellow-200",
       text: "text-white",
-      sub: "text-white/60",
+      sub: "text-white",
       particles: "stars",
     }
   },
   "Nuageux": {
     day: {
-      bg: "from-gray-300 to-gray-400",
+      bg: "from-slate-500 to-slate-600",
       icon: faCloud,
       iconClass: "text-white",
       text: "text-white",
-      sub: "text-white/70",
+      sub: "text-white",
       particles: "clouds",
     },
     night: {
@@ -36,17 +36,17 @@ export const weatherThemes = {
       icon: faCloud,
       iconClass: "text-gray-300",
       text: "text-white",
-      sub: "text-white/60",
+      sub: "text-white",
       particles: "clouds", 
     }
   },
   "Brouillard": {
     day: {
-      bg: "from-stone-400 to-stone-500",
+      bg: "from-stone-500 to-stone-600",
       icon: faSmog,
       iconClass: "text-stone-200",
       text: "text-white",
-      sub: "text-white/70",
+      sub: "text-white",
       particles: "fog",
     },
     night: {
@@ -54,7 +54,7 @@ export const weatherThemes = {
       icon: faSmog,
       iconClass: "text-stone-400",
       text: "text-stone-200",
-      sub: "text-white/60",
+      sub: "text-white",
       particles: "fog",
     }
   },
@@ -64,7 +64,7 @@ export const weatherThemes = {
       icon: faCloudRain,
       iconClass: "text-blue-200",
       text: "text-white",
-      sub: "text-white/70",
+      sub: "text-white",
       particles: "rain",
     },
     night: {
@@ -72,7 +72,7 @@ export const weatherThemes = {
       icon: faCloudRain,
       iconClass: "text-blue-300",
       text: "text-white",
-      sub: "text-white/60",
+      sub: "text-white",
       particles: "rain",
     }
   },
@@ -82,7 +82,7 @@ export const weatherThemes = {
       icon: faSnowflake,
       iconClass: "text-blue-400",
       text: "text-blue-900",
-      sub: "text-blue-700/70",
+      sub: "text-blue-800",
       particles: "snow",
     },
     night: {
@@ -90,17 +90,17 @@ export const weatherThemes = {
       icon: faSnowflake,
       iconClass: "text-blue-200",
       text: "text-white",
-      sub: "text-white/60",
+      sub: "text-white",
       particles: "snow",
     }
   },
   "Averses": {
     day: {
-      bg: "from-slate-400 to-blue-500",
+      bg: "from-slate-600 to-blue-700",
       icon: faCloudShowersHeavy,
       iconClass: "text-white",
       text: "text-white",
-      sub: "text-white/70",
+      sub: "text-white",
       particles: "rain",
     },
     night: {
@@ -108,7 +108,7 @@ export const weatherThemes = {
       icon: faCloudShowersHeavy,
       iconClass: "text-blue-200",
       text: "text-white",
-      sub: "text-white/60",
+      sub: "text-white",
       particles: "rain",
     }
   },
@@ -118,7 +118,7 @@ export const weatherThemes = {
       icon: faBolt,
       iconClass: "text-yellow-300",
       text: "text-white",
-      sub: "text-white/70",
+      sub: "text-white",
       particles: "thunder", // Modifié "rain" en "thunder" pour avoir les éclairs
     },
     night: {
@@ -126,17 +126,17 @@ export const weatherThemes = {
       icon: faBolt,
       iconClass: "text-yellow-300",
       text: "text-white",
-      sub: "text-white/60",
+      sub: "text-white",
       particles: "thunder", // Idem
     }                               
   },
   "Inconnu": {
     day: {
-      bg: "from-stone-300 to-stone-400",
+      bg: "from-stone-500 to-stone-600",
       icon: faQuestion,
       iconClass: "text-white",
       text: "text-white",
-      sub: "text-white/70",
+      sub: "text-white",
       particles: "none",
     },
     night: {
@@ -144,7 +144,7 @@ export const weatherThemes = {
       icon: faQuestion,
       iconClass: "text-white",
       text: "text-white",
-      sub: "text-white/60",
+      sub: "text-white",
       particles: "stars",
     }
   },
