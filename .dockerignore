@@ -1,0 +1,9 @@
+# Liste blanche : ni .env ni target/ ne doivent entrer dans le contexte de build
+*
+!Cargo.toml
+!Cargo.lock
+!shared
+!services
+# Membre du workspace : son manifeste est lu par cargo, mais il n'est pas compilé
+!ui/src-tauri/Cargo.toml
+!ui/src-tauri/src

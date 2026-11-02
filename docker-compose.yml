@@ -1,0 +1,53 @@
+name: cinenow
+
+x-rust-service: &rust-service
+  image: cinenow-services
+  build: .
+  env_file: .env
+  environment:
+    MQTT_BROKER_HOST: mqtt
+    MQTT_BROKER_PORT: "1883"
+  depends_on:
+    mqtt:
+      condition: service_healthy
+  restart: on-failure
+
+services:
+  mqtt:
+    image: eclipse-mosquitto:2
+    command: mosquitto -c /mosquitto-no-auth.conf
+    ports:
+      - "127.0.0.1:1883:1883"
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  weather-service:
+    <<: *rust-service
+    command: weather-service
+
+  movie-service:
+    <<: *rust-service
+    command: movie-service
+
+  recommendation-service:
+    <<: *rust-service
+    command: recommendation-service
+
+  web-server:
+    <<: *rust-service
+    command: web-server
+    ports:
+      - "127.0.0.1:3001:3001"
+
+  ui:
+    build:
+      context: ui
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - web-server
