@@ -1,6 +1,6 @@
 use dotenvy::dotenv;
 use rumqttc::{AsyncClient, MqttOptions, Packet, QoS};
-use serde::Deserialize;
+use shared::{MoodRequest, RecommendationResponse, MQTT_MAX_PACKET_SIZE};
 use std::{collections::HashMap, env, sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 
@@ -19,11 +19,6 @@ const MOVIE_TOPICS: &[&str] = &[
 
 // Topic sortant
 const TOPIC_RESULT: &str = "recommendations/result";
-
-#[derive(Debug, Deserialize)]
-struct MoodPayload {
-    moods: Vec<String>,
-}
 
 #[derive(Clone)]
 struct State {
@@ -44,6 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut mqttoptions = MqttOptions::new("recommendation-service", broker_host, broker_port);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
+    mqttoptions.set_max_packet_size(MQTT_MAX_PACKET_SIZE, MQTT_MAX_PACKET_SIZE);
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 20);
 
     let state = State {
@@ -71,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             state_clone.movies.lock().await.insert(genre, catalog.movies);
                         }
                     } else if msg.topic == TOPIC_MOOD {
-                        if let Ok(mood_data) = serde_json::from_str::<MoodPayload>(&payload) {
+                        if let Ok(mood_data) = serde_json::from_str::<MoodRequest>(&payload) {
                             println!("Humeur reçue : {:?}", mood_data.moods);
 
                             let weather = state_clone.weather.lock().await.clone();
@@ -85,7 +81,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             println!("{} films recommandés", recommendations.len());
 
-                            if let Ok(json) = serde_json::to_string(&recommendations) {
+                            let response = RecommendationResponse {
+                                request_id: mood_data.request_id,
+                                movies: recommendations,
+                            };
+
+                            if let Ok(json) = serde_json::to_string(&response) {
                                 let _ = client_clone
                                     .publish(TOPIC_RESULT, QoS::AtLeastOnce, false, json)
                                     .await;

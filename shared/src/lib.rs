@@ -31,3 +31,26 @@ pub struct MovieCatalog {
     pub movies: Vec<Movie>,
     pub total: usize,
 }
+
+/// Taille max d'un paquet MQTT : un catalogue dépasse parfois les 10 Ko par défaut de rumqttc
+pub const MQTT_MAX_PACKET_SIZE: usize = 64 * 1024;
+
+/// Demande publiée sur `mood/selected`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoodRequest {
+    pub request_id: u64,
+    pub moods: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecommendedMovie {
+    pub id: u32,
+    pub score: f32,
+}
+
+/// Réponse publiée sur `recommendations/result`, reliée à sa demande par `request_id`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecommendationResponse {
+    pub request_id: u64,
+    pub movies: Vec<RecommendedMovie>,
+}

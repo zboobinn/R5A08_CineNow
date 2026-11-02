@@ -1,6 +1,6 @@
 use axum::{
     extract::State,
-    http::Method,
+    http::{Method, StatusCode},
     routing::{get, post},
     Json, Router,
 };
@@ -8,9 +8,19 @@ use axum::extract::Path;
 use dotenvy::dotenv;
 use rumqttc::{AsyncClient, MqttOptions, Packet, QoS};
 use serde::{Deserialize, Serialize};
-use shared::{Movie, MovieCatalog};
-use std::{collections::HashMap, env, sync::Arc, time::Duration};
-use tokio::sync::Mutex;
+use shared::{
+    Movie, MovieCatalog, MoodRequest, RecommendationResponse, RecommendedMovie, MQTT_MAX_PACKET_SIZE,
+};
+use std::{
+    collections::HashMap,
+    env,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
+use tokio::sync::{oneshot, Mutex};
 use tower_http::cors::{Any, CorsLayer};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -32,18 +42,22 @@ struct MoodPayload {
     moods: Vec<String>,
 }
 
-// Ce que le recommendation-service publie
-#[derive(Debug, Deserialize)]
-struct RecommendedMovie {
-    id: u32,
-}
-
 #[derive(Clone)]
 struct AppState {
     weather: Arc<Mutex<WeatherData>>,
     movies: Arc<Mutex<HashMap<String, Vec<Movie>>>>,
-    recommendations: Arc<Mutex<Vec<Movie>>>,
+    pending: PendingRequests,
+    next_request_id: Arc<AtomicU64>,
     mqtt_client: AsyncClient,
+}
+
+// Demandes en attente de leur réponse sur recommendations/result
+type PendingRequests = Arc<Mutex<HashMap<u64, oneshot::Sender<Vec<Movie>>>>>;
+
+type ApiError = (StatusCode, Json<serde_json::Value>);
+
+fn api_error(status: StatusCode, message: &str) -> ApiError {
+    (status, Json(serde_json::json!({ "error": message })))
 }
 
 #[derive(Debug, Serialize)]
@@ -68,6 +82,9 @@ const MOVIE_TOPICS: &[&str] = &[
     "movies/documentaire", "movies/histoire",
 ];
 
+const RECOMMENDATION_TIMEOUT: Duration = Duration::from_secs(5);
+const TMDB_TIMEOUT: Duration = Duration::from_secs(10);
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
@@ -81,16 +98,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut mqttoptions = MqttOptions::new("web-server", broker_host, broker_port);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
+    mqttoptions.set_max_packet_size(MQTT_MAX_PACKET_SIZE, MQTT_MAX_PACKET_SIZE);
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 20);
 
     let weather_state = Arc::new(Mutex::new(WeatherData::default()));
     let movies_state: Arc<Mutex<HashMap<String, Vec<Movie>>>> = Arc::new(Mutex::new(HashMap::new()));
-    let recommendations_state: Arc<Mutex<Vec<Movie>>> = Arc::new(Mutex::new(Vec::new()));
+    let pending: PendingRequests = Arc::new(Mutex::new(HashMap::new()));
 
     let weather_clone = weather_state.clone();
     let movies_clone = movies_state.clone();
-    let recommendations_clone = recommendations_state.clone();
+    let pending_clone = pending.clone();
 
     // Spawn l'eventloop EN PREMIER
     tokio::spawn(async move {
@@ -111,27 +129,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             println!("Films mis à jour : {}", genre);
                         }
                     } else if msg.topic == "recommendations/result" {
-                        if let Ok(reco) = serde_json::from_str::<Vec<RecommendedMovie>>(&payload) {
-                            // Reconstituer les films complets depuis la HashMap movies
-                            let movies = movies_clone.lock().await;
-                            let all_movies: HashMap<u32, &Movie> = movies
-                                .values()
-                                .flatten()
-                                .map(|m| (m.id, m))
-                                .collect();
-
-                            // Respecter l'ordre des scores
-                            let result: Vec<Movie> = reco
-                                .iter()
-                                .filter_map(|r| all_movies.get(&r.id).map(|m| (*m).clone()))
-                                .collect();
-
+                        if let Ok(response) = serde_json::from_str::<RecommendationResponse>(&payload) {
+                            let result = resolve_movies(&response.movies, &*movies_clone.lock().await);
                             println!("Recommandations reçues : {} films", result.len());
-                            *recommendations_clone.lock().await = result;
+
+                            // Une réponse sans demande en attente (délai dépassé) est ignorée
+                            if let Some(sender) = pending_clone.lock().await.remove(&response.request_id) {
+                                let _ = sender.send(result);
+                            }
                         }
                     }
                 }
-                Err(e) => eprintln!("Erreur MQTT: {:?}", e),
+                Err(e) => {
+                    eprintln!("Erreur MQTT: {:?}", e);
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
                 _ => {}
             }
         }
@@ -147,7 +159,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState {
         weather: weather_state,
         movies: movies_state,
-        recommendations: recommendations_state,
+        pending,
+        next_request_id: Arc::new(AtomicU64::new(1)),
         mqtt_client: client,
     };
 
@@ -159,9 +172,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/weather", get(get_weather))
         .route("/movies", get(get_movies))
-        .route("/recommendations", get(get_recommendations))
+        .route("/recommendations", post(post_recommendations))
         .route("/location", post(post_location))
-        .route("/mood", post(post_mood))
         .route("/movie/:id", get(get_movie_details))
         .with_state(app_state)
         .layer(cors);
@@ -183,7 +195,7 @@ async fn get_movies(State(state): State<AppState>) -> Json<HashMap<String, Vec<M
 
 async fn get_movie_details(
     Path(id): Path<u32>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<MovieDetails>, ApiError> {
     let tmdb_key = std::env::var("TMDB_API_KEY").unwrap_or_default();
 
     // Fetch détails + crédits en parallèle
@@ -196,15 +208,24 @@ async fn get_movie_details(
         id, tmdb_key
     );
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(TMDB_TIMEOUT)
+        .build()
+        .map_err(|_| api_error(StatusCode::INTERNAL_SERVER_ERROR, "Client HTTP indisponible"))?;
     let (details_res, credits_res) = tokio::join!(
         client.get(&details_url).send(),
         client.get(&credits_url).send(),
     );
 
     let details: serde_json::Value = match details_res {
-        Ok(r) => r.json().await.unwrap_or_default(),
-        Err(_) => return Json(serde_json::json!({ "error": "Erreur TMDb" })),
+        Ok(r) if r.status() == StatusCode::NOT_FOUND => {
+            return Err(api_error(StatusCode::NOT_FOUND, "Film introuvable"));
+        }
+        Ok(r) if r.status().is_success() => r
+            .json()
+            .await
+            .map_err(|_| api_error(StatusCode::BAD_GATEWAY, "Réponse TMDb illisible"))?,
+        _ => return Err(api_error(StatusCode::BAD_GATEWAY, "Erreur TMDb")),
     };
 
     let credits: serde_json::Value = match credits_res {
@@ -255,22 +276,50 @@ async fn get_movie_details(
         actors,
     };
 
-    Json(serde_json::to_value(movie).unwrap_or_default())
+    Ok(Json(movie))
 }
 
-async fn get_recommendations(State(state): State<AppState>) -> Json<Vec<Movie>> {
-    Json(state.recommendations.lock().await.clone())
-}
-
-async fn post_mood(
+/// Publie la demande sur MQTT et attend la réponse portant le même request_id
+async fn post_recommendations(
     State(state): State<AppState>,
     Json(payload): Json<MoodPayload>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<Vec<Movie>>, ApiError> {
     println!("Humeur reçue : {:?}", payload.moods);
-    if let Ok(mqtt_msg) = serde_json::to_string(&payload) {
-        let _ = state.mqtt_client.publish("mood/selected", QoS::AtLeastOnce, false, mqtt_msg).await;
+
+    let request_id = state.next_request_id.fetch_add(1, Ordering::Relaxed);
+    let request = MoodRequest { request_id, moods: payload.moods };
+    let mqtt_msg = serde_json::to_string(&request)
+        .map_err(|_| api_error(StatusCode::INTERNAL_SERVER_ERROR, "Demande invalide"))?;
+
+    let (sender, receiver) = oneshot::channel();
+    state.pending.lock().await.insert(request_id, sender);
+
+    let published = state.mqtt_client.publish("mood/selected", QoS::AtLeastOnce, false, mqtt_msg).await;
+    if published.is_err() {
+        state.pending.lock().await.remove(&request_id);
+        return Err(api_error(StatusCode::BAD_GATEWAY, "Broker MQTT indisponible"));
     }
-    Json(serde_json::json!({ "status": "success" }))
+
+    match tokio::time::timeout(RECOMMENDATION_TIMEOUT, receiver).await {
+        Ok(Ok(movies)) => Ok(Json(movies)),
+        _ => {
+            state.pending.lock().await.remove(&request_id);
+            Err(api_error(StatusCode::GATEWAY_TIMEOUT, "Le service de recommandation ne répond pas"))
+        }
+    }
+}
+
+/// Reconstitue les films complets en respectant l'ordre des scores
+fn resolve_movies(reco: &[RecommendedMovie], movies_by_genre: &HashMap<String, Vec<Movie>>) -> Vec<Movie> {
+    let all_movies: HashMap<u32, &Movie> = movies_by_genre
+        .values()
+        .flatten()
+        .map(|m| (m.id, m))
+        .collect();
+
+    reco.iter()
+        .filter_map(|r| all_movies.get(&r.id).map(|m| (*m).clone()))
+        .collect()
 }
 
 async fn post_location(
@@ -282,4 +331,41 @@ async fn post_location(
         let _ = state.mqtt_client.publish("weather/location", QoS::AtLeastOnce, false, mqtt_msg).await;
     }
     Json(serde_json::json!({ "status": "success" }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_movie(id: u32) -> Movie {
+        Movie {
+            id,
+            title: format!("Film {}", id),
+            genres: vec!["Action".to_string()],
+            rating: 7.0,
+            poster_path: None,
+            overview: String::new(),
+            release_date: None,
+        }
+    }
+
+    #[test]
+    fn test_resolve_movies_respecte_ordre_des_scores() {
+        let catalog = HashMap::from([("action".to_string(), vec![make_movie(1), make_movie(2)])]);
+        let reco = vec![
+            RecommendedMovie { id: 2, score: 9.0 },
+            RecommendedMovie { id: 1, score: 8.0 },
+        ];
+
+        let ids: Vec<u32> = resolve_movies(&reco, &catalog).iter().map(|m| m.id).collect();
+        assert_eq!(ids, vec![2, 1]);
+    }
+
+    #[test]
+    fn test_resolve_movies_ignore_id_inconnu() {
+        let catalog = HashMap::from([("action".to_string(), vec![make_movie(1)])]);
+        let reco = vec![RecommendedMovie { id: 99, score: 9.0 }];
+
+        assert!(resolve_movies(&reco, &catalog).is_empty());
+    }
 }

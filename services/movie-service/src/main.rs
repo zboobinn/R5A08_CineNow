@@ -72,6 +72,7 @@ async fn main() -> Result<()> {
 fn create_mqtt_client(host: &str, port: u16) -> Client {
     let mut opts = MqttOptions::new("movie-service", host, port);
     opts.set_keep_alive(Duration::from_secs(5));
+    opts.set_max_packet_size(shared::MQTT_MAX_PACKET_SIZE, shared::MQTT_MAX_PACKET_SIZE);
 
     let (client, mut connection) = Client::new(opts, 10);
 
@@ -96,8 +97,9 @@ async fn fetch_movies_by_genre(api_key: &str, genre_id: u32, genre_label: &str) 
             api_key, genre_id, page
         );
 
-        let response = reqwest::get(&url).await?;
-        let json: Value = response.json().await?;
+        // without_url : l'URL contient la clé TMDb, elle ne doit pas finir dans les logs
+        let response = reqwest::get(&url).await.map_err(|e| e.without_url())?;
+        let json: Value = response.json().await.map_err(|e| e.without_url())?;
 
         let results = match json["results"].as_array() {
             Some(r) => r,

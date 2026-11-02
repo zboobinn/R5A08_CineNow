@@ -1,16 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use shared::RecommendedMovie;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct WeatherData {
     pub condition: String,
     pub period: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct RecommendedMovie {
-    pub id: u32,
-    pub score: f32,
 }
 
 /// Retourne les genres recommandés avec leur multiplicateur pour une humeur + météo + période donnés
