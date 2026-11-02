@@ -13,23 +13,17 @@ function Footer() {
           <p lang="en">This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
         </div>
 
-        <div className="flex flex-col gap-2 md:text-right">
-          <p>
-            Données météo :{" "}
-            <a href="https://open-meteo.com/" target="_blank" rel="noreferrer" className={linkClass}>
-              Open-Meteo.com
-            </a>{" "}
-            (
-            <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className={linkClass}>
-              CC BY 4.0
-            </a>
-            )
-          </p>
-          <p>
-            Projet de programmation répartie en Rust, R5.A.08. Albin Canals, Léo Noailles, Abel
-            Chareyron et Antoine Landon.
-          </p>
-        </div>
+        <p className="md:text-right">
+          Données météo :{" "}
+          <a href="https://open-meteo.com/" target="_blank" rel="noreferrer" className={linkClass}>
+            Open-Meteo.com
+          </a>{" "}
+          (
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer" className={linkClass}>
+            CC BY 4.0
+          </a>
+          )
+        </p>
       </div>
     </footer>
   );
