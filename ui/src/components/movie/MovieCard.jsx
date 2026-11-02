@@ -1,47 +1,58 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faStar, faFire } from "@fortawesome/free-solid-svg-icons";
+import { faStar } from "@fortawesome/free-solid-svg-icons";
+import Poster from "./Poster";
+
+// Date complète pour un film à venir, année seule sinon
+function formatRelease(date) {
+  if (!date) return null;
+  if (date <= new Date().toISOString().slice(0, 10)) return date.slice(0, 4);
+  return new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+}
 
 function MovieCard({ movie, onClick }) {
+  const release = formatRelease(movie.release_date);
+  const rating = movie.rating > 0 ? movie.rating.toFixed(1) : null;
+  const description = [
+    movie.title,
+    movie.genres?.[0],
+    release,
+    rating ? `note ${rating} sur 10` : "pas encore noté",
+  ].filter(Boolean).join(", ");
+
   return (
-    <div
-      onClick={() => onClick?.(movie)}
-      className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 cursor-pointer border border-stone-100"
-    >
-      <div className="relative aspect-2/3 overflow-hidden bg-stone-200">
-        {movie.poster_path ? (
-          <img src={movie.poster_path} alt={movie.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-stone-400">
-            <FontAwesomeIcon icon={faFire} className="text-4xl" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+    <li className="min-w-0">
+      <button
+        type="button"
+        onClick={() => onClick?.(movie)}
+        aria-label={description}
+        className="group flex h-full w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-orange-400 hover:shadow-lg"
+      >
+        <span className="relative block aspect-2/3 w-full overflow-hidden bg-stone-200">
+          <Poster movie={movie} className="transition-transform duration-300 group-hover:scale-105" />
 
-        {/* Badge genre */}
-        {movie.genres?.length > 0 && (
-          <div className="absolute top-3 left-3 px-2.5 py-1 bg-white/90 backdrop-blur-sm rounded-lg text-xs font-bold text-stone-800 shadow-sm capitalize">
-            {movie.genres[0]}
-          </div>
-        )}
+          {movie.genres?.length > 0 && (
+            <span className="absolute top-2 left-2 rounded-lg bg-stone-950/80 px-2 py-1 text-xs font-semibold text-white capitalize">
+              {movie.genres[0]}
+            </span>
+          )}
+        </span>
 
-        {/* Badge année */}
-        {movie.release_date && (
-          <div className="absolute top-3 right-3 px-2.5 py-1 bg-white/90 backdrop-blur-sm rounded-lg text-xs font-bold text-stone-800 shadow-sm">
-            {movie.release_date.slice(0, 4)}
-          </div>
-        )}
-      </div>
-
-      <div className="p-4 flex flex-col flex-1 justify-between">
-        <h3 className="font-bold text-stone-800 leading-tight mb-1 line-clamp-2 group-hover:text-orange-600 transition-colors">
-          {movie.title}
-        </h3>
-        <div className="flex items-center gap-1.5 mt-3">
-          <FontAwesomeIcon icon={faStar} className="text-yellow-400 text-sm" />
-          <span className="font-semibold text-stone-700 text-sm">{movie.rating.toFixed(1)}</span>
-        </div>
-      </div>
-    </div>
+        <span className="flex flex-1 flex-col justify-between gap-2 p-3 sm:p-4">
+          <span className="line-clamp-2 leading-snug font-semibold text-stone-900 transition-colors group-hover:text-orange-800">
+            {movie.title}
+          </span>
+          <span className="flex items-center justify-between gap-2 text-sm text-stone-600">
+            {rating && (
+              <span className="flex items-center gap-1.5">
+                <FontAwesomeIcon icon={faStar} className="text-orange-500" />
+                <span className="font-semibold text-stone-800">{rating}</span>
+              </span>
+            )}
+            {release && <span className="whitespace-nowrap">{release}</span>}
+          </span>
+        </span>
+      </button>
+    </li>
   );
 }
 
