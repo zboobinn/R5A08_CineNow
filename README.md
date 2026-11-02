@@ -104,12 +104,6 @@ Projet de Programmation Répartie en Rust, module R5.A.08, IUT, groupe Info3-TP1
 - Abel CHAREYRON
 - Antoine LANDON
 
-## Ma contribution
-
-> ✍️ *Section à rédiger par Léo.*
-
-<!-- Décrire ici la contribution personnelle : services, fonctionnalités, décisions techniques. -->
-
 ---
 
 ## 📖 Spécifications
